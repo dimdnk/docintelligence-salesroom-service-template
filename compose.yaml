@@ -1,0 +1,75 @@
+services:
+  # PostgreSQL Database for Catalog Service
+  postgres-catalog:
+    extends:
+      file: compose.base.yaml
+      service: postgres-catalog
+
+  # RabbitMQ for Catalog Service
+  rabbitmq-catalog:
+    extends:
+      file: compose.base.yaml
+      service: rabbitmq-catalog
+
+  # MinIO S3-compatible object storage
+  minio:
+    extends:
+      file: compose.base.yaml
+      service: minio
+
+  # MinIO bucket init
+  minio-init:
+    extends:
+      file: compose.base.yaml
+      service: minio-init
+
+  # DbGate - Database Administration Tool
+  dbgate:
+    extends:
+      file: compose.base.yaml
+      service: dbgate
+
+  # Ollama — local LLM inference
+  ollama:
+    extends:
+      file: compose.base.yaml
+      service: ollama
+
+  # SonarQube for code quality analysis
+  sonar:
+    extends:
+      file: compose.base.yaml
+      service: sonar
+
+  # Prometheus for metrics collection
+  prometheus:
+    extends:
+      file: compose.base.yaml
+      service: prometheus
+
+  # Grafana for metrics visualization
+  grafana:
+    extends:
+      file: compose.base.yaml
+      service: grafana
+
+networks:
+  catalog-service-network:
+    name: foundation-catalog-network-dev
+    external: false
+
+volumes:
+  postgres_catalog_data:
+    name: docintelligence_catalog_postgres_data_dev
+  rabbitmq_catalog_data:
+    name: docintelligence_catalog_rabbitmq_data_dev
+  minio_catalog_data:
+    name: docintelligence_catalog_minio_data_dev
+  dbgate_catalog_data:
+    name: docintelligence_catalog_dbgate_data_dev
+  catalog_logs:
+    name: docintelligence_catalog_logs_dev
+  catalog_tmp:
+    name: docintelligence_catalog_tmp_dev
+  ollama_catalog_data:
+    name: docintelligence_catalog_ollama_data_dev

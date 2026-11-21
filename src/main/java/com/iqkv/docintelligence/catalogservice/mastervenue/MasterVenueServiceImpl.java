@@ -1,0 +1,181 @@
+/*
+ * Copyright 2026 iQKV Foundation Team.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.iqkv.docintelligence.catalogservice.mastervenue;
+
+import java.util.List;
+import java.util.UUID;
+
+import com.iqkv.docintelligence.catalogservice.mastervenue.dto.MasterVenueDtoMapper;
+import com.iqkv.docintelligence.catalogservice.mastervenue.dto.MasterVenueDtos;
+import com.iqkv.docintelligence.venue.MasterVenue;
+import com.iqkv.docintelligence.venue.MasterVenueAsset;
+import com.iqkv.docintelligence.venue.MasterVenueAssetMapper;
+import com.iqkv.docintelligence.venue.MasterVenueMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class MasterVenueServiceImpl implements MasterVenueService {
+
+  private static final Logger log = LoggerFactory.getLogger(MasterVenueServiceImpl.class);
+
+  private final MasterVenueMapper masterVenueMapper;
+
+  private final MasterVenueAssetMapper masterVenueAssetMapper;
+
+  private final MasterVenueSemanticSearchService semanticSearchService;
+
+  private final MasterVenueEmbeddingService embeddingService;
+
+  public MasterVenueServiceImpl(final MasterVenueMapper masterVenueMapper,
+                                final MasterVenueAssetMapper masterVenueAssetMapper,
+                                final MasterVenueSemanticSearchService semanticSearchService,
+                                final MasterVenueEmbeddingService embeddingService) {
+    this.masterVenueMapper = masterVenueMapper;
+    this.masterVenueAssetMapper = masterVenueAssetMapper;
+    this.semanticSearchService = semanticSearchService;
+    this.embeddingService = embeddingService;
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueListResponse searchPublicVenues(final String search, final String city,
+                                                                    final String sortBy, final String sortDir,
+                                                                    final int limit, final int offset) {
+    final var venues = masterVenueMapper.search(search, city, sortBy, sortDir, limit, offset);
+    return new MasterVenueDtos.MasterVenueListResponse(
+        venues.stream().map(MasterVenueDtoMapper::toSummaryView).toList(),
+        masterVenueMapper.countSearch(search, city)
+    );
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenuePublicResponse getPublicVenue(final UUID id) {
+    return MasterVenueDtoMapper.toPublicResponse(requireVenue(id));
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueAssetListResponse listPublicVenueAssets(final UUID id) {
+    requireVenue(id);
+    return toAssetList(masterVenueAssetMapper.findByMasterVenueId(id));
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueAssetListResponse listPublicVenuePhotos(final UUID id) {
+    requireVenue(id);
+    return toAssetList(masterVenueAssetMapper.findPhotosByMasterVenueId(id));
+  }
+
+  private MasterVenueDtos.MasterVenueAssetListResponse toAssetList(final List<MasterVenueAsset> assets) {
+    return new MasterVenueDtos.MasterVenueAssetListResponse(
+        assets.stream().map(MasterVenueDtoMapper::toPublicAssetView).toList(),
+        assets.size()
+    );
+  }
+
+  private MasterVenueDtos.AdminMasterVenueAssetListResponse toAdminAssetList(final List<MasterVenueAsset> assets) {
+    return new MasterVenueDtos.AdminMasterVenueAssetListResponse(
+        assets.stream().map(MasterVenueDtoMapper::toAdminAssetView).toList(),
+        assets.size()
+    );
+  }
+
+  @Override
+  public MasterVenueDtos.AdminMasterVenueListResponse searchVenues(final String search, final String city,
+                                                                   final String sortBy, final String sortDir,
+                                                                   final int limit, final int offset) {
+    final var venues = masterVenueMapper.search(search, city, sortBy, sortDir, limit, offset);
+    return new MasterVenueDtos.AdminMasterVenueListResponse(
+        venues.stream().map(MasterVenueDtoMapper::toResponse).toList(),
+        masterVenueMapper.countSearch(search, city)
+    );
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueResponse getVenue(final UUID id) {
+    return MasterVenueDtoMapper.toResponse(requireVenue(id));
+  }
+
+  @Override
+  public MasterVenueDtos.AdminMasterVenueAssetListResponse listVenueAssets(final UUID id) {
+    requireVenue(id);
+    return toAdminAssetList(masterVenueAssetMapper.findByMasterVenueId(id));
+  }
+
+  @Override
+  public MasterVenueDtos.AdminMasterVenueAssetListResponse listVenuePhotos(final UUID id) {
+    requireVenue(id);
+    return toAdminAssetList(masterVenueAssetMapper.findPhotosByMasterVenueId(id));
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueResponse createVenue(final MasterVenueDtos.MasterVenueWriteRequest request) {
+    final MasterVenue venue = MasterVenueDtoMapper.toEntity(request);
+    masterVenueMapper.insert(venue);
+    embeddingService.embed(venue);
+    // Re-read so created_at / updated_at reflect the database-computed values.
+    return MasterVenueDtoMapper.toResponse(requireVenue(venue.getId()));
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueResponse replaceVenue(final UUID id,
+                                                          final MasterVenueDtos.MasterVenueWriteRequest request) {
+    final MasterVenue venue = requireVenue(id);
+    MasterVenueDtoMapper.applyWrite(venue, request);
+    masterVenueMapper.update(venue);
+    embeddingService.embed(venue);
+    return MasterVenueDtoMapper.toResponse(requireVenue(id));
+  }
+
+  @Override
+  public MasterVenueDtos.MasterVenueResponse patchVenue(final UUID id,
+                                                        final MasterVenueDtos.MasterVenuePatchRequest request) {
+    final MasterVenue venue = requireVenue(id);
+    MasterVenueDtoMapper.applyPatch(venue, request);
+    masterVenueMapper.update(venue);
+    embeddingService.embed(venue);
+    return MasterVenueDtoMapper.toResponse(requireVenue(id));
+  }
+
+  @Override
+  public void deleteVenue(final UUID id) {
+    requireVenue(id);
+    masterVenueMapper.deleteById(id);
+  }
+
+  @Override
+  @Transactional
+  public void deleteVenues(final List<UUID> ids) {
+    // No existence check: DELETE of an unknown id is a no-op, which is what makes the batch idempotent.
+    ids.forEach(masterVenueMapper::deleteById);
+  }
+
+  @Override
+  public MasterVenueDtos.SemanticSearchResponse semanticSearch(final String query,
+                                                               final String city,
+                                                               final int limit) {
+    log.info("Delegating semantic search to the vector search service: q='{}', city={}, limit={}",
+        query, city, limit);
+    return semanticSearchService.search(query, city, limit);
+  }
+
+  private MasterVenue requireVenue(final UUID id) {
+    return masterVenueMapper.findById(id)
+        .orElseThrow(() -> new MasterVenueNotFoundException(id));
+  }
+}
