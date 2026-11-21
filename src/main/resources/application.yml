@@ -4,7 +4,7 @@
 
 spring:
   application:
-    name: docintelligence-catalog-service
+    name: docintelligence-pitch-service
   datasource:
     url: jdbc:postgresql://${iqkv.db.host}:${iqkv.db.port}/${iqkv.db.name}
     username: ${iqkv.db.username}
@@ -78,49 +78,20 @@ iqkv:
   db:
     host: ${DB_HOST:localhost}
     port: ${DB_PORT:5432}
-    name: ${DB_NAME:catalogservice}
-    username: ${DB_USERNAME:svc_catalog_dba}
-    password: ${DB_PASSWORD:svc_catalog_dba}
+    name: ${DB_NAME:pitchservice}
+    username: ${DB_USERNAME:svc_pitch_dba}
+    password: ${DB_PASSWORD:svc_pitch_dba}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:svc_catalog_rmq}
-    password: ${RABBITMQ_PASSWORD:svc_catalog_rmq}
+    username: ${RABBITMQ_USERNAME:svc_pitch_rmq}
+    password: ${RABBITMQ_PASSWORD:svc_pitch_rmq}
   messaging:
     rabbitmq:
       # Controlled via MESSAGING_ENABLED env var; defaults to false for local safety.
       # Helm chart configmap sets this per environment (sit/uat/prd).
       enabled: ${MESSAGING_ENABLED:false}
-  catalog:
-    ai-search:
-      # Gates the LLM query planner that turns a semantic-search query into structured
-      # filters. When disabled (or when the Ollama chat model is unreachable) semantic
-      # search falls back to embedding the raw query with no hard filters.
-      enabled: ${CATALOG_AI_SEARCH_ENABLED:true}
-    venue-ask:
-      # Catalog-native chat / RAG over the tenant's own venue data. When disabled, or when the
-      # Ollama chat model is unreachable, the ask endpoints answer answered=false with the
-      # retrieved sources and the chat endpoints degrade to a canned reply.
-      enabled: ${CATALOG_VENUE_ASK_ENABLED:true}
-      system-prompt: ${CATALOG_VENUE_ASK_SYSTEM_PROMPT:You are the venue catalog assistant for a venue team. Answer using only the CONTEXT provided. If the context does not contain the answer, say you do not know. Never invent venue facts. Cite sources by their label when you use them.}
-      # Selectable persona overlays. The client sends one of these keys with a turn; only keys
-      # configured here resolve, so client input never reaches the system message.
-      personas:
-        concierge: ${CATALOG_VENUE_ASK_PERSONA_CONCIERGE:Adopt a warm, concierge tone. Lead with what the venue offers and suggest a helpful next step when it fits.}
-        compliance: ${CATALOG_VENUE_ASK_PERSONA_COMPLIANCE:Answer strictly from the CONTEXT. If the context does not contain the answer, say you do not know. Do not speculate or use outside knowledge.}
-      # Persona applied when a turn names none; pinned to compliance for MVP.
-      default-persona: ${CATALOG_VENUE_ASK_DEFAULT_PERSONA:compliance}
-      max-input-chars: ${CATALOG_VENUE_ASK_MAX_INPUT_CHARS:4000}
-      max-output-tokens: ${CATALOG_VENUE_ASK_MAX_OUTPUT_TOKENS:1024}
-      temperature: ${CATALOG_VENUE_ASK_TEMPERATURE:0.2}
-      default-model: ${CATALOG_VENUE_ASK_MODEL:${SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL:llama3.2}}
-      max-context-chars: ${CATALOG_VENUE_ASK_MAX_CONTEXT_CHARS:12000}
-      # Earlier turns of a chat session replayed as memory, and the size they may add to the prompt.
-      max-history-messages: ${CATALOG_VENUE_ASK_MAX_HISTORY_MESSAGES:8}
-      max-history-chars: ${CATALOG_VENUE_ASK_MAX_HISTORY_CHARS:4000}
-      guard:
-        # Prompt-injection guard for chat / ask input and the output leak check.
-        enabled: ${CATALOG_VENUE_ASK_GUARD_ENABLED:true}
+
   objectstorage:
     # S3-compatible endpoint — MinIO in SIT/UAT, https://s3.amazonaws.com for AWS S3 in prod.
     endpoint: ${OBJECTSTORAGE_ENDPOINT:http://localhost:9000}
@@ -129,7 +100,7 @@ iqkv:
     public-endpoint: ${OBJECTSTORAGE_PUBLIC_ENDPOINT:}
     access-key: ${OBJECTSTORAGE_ACCESS_KEY:iqkv}
     secret-key: ${OBJECTSTORAGE_SECRET_KEY:iqkv_password}
-    bucket-name: ${OBJECTSTORAGE_BUCKET_NAME:catalog-assets}
+    bucket-name: ${OBJECTSTORAGE_BUCKET_NAME:pitch-assets}
     region: ${OBJECTSTORAGE_REGION:us-east-1}
     ssl: ${OBJECTSTORAGE_SSL:false}
     upload:

@@ -14,14 +14,14 @@
         },
         {
             "name": "iqkv.messaging.rabbitmq",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.MessagingConfigurationProperties",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.MessagingConfigurationProperties",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.MessagingConfigurationProperties",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.MessagingConfigurationProperties",
             "description": "RabbitMQ messaging toggles. 'enabled' drives @ConditionalOnProperty in RabbitMQConfig and TenantProvisioningConsumer."
         },
         {
             "name": "iqkv.platform",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.PlatformConfigurationProperties",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.PlatformConfigurationProperties",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.PlatformConfigurationProperties",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.PlatformConfigurationProperties",
             "description": "Platform-wide operational settings. Must be consistent across all core services (IAM, Billing, CMS, etc.) — all read the same ROLLOUT_MODE env var."
         },
         {
@@ -40,26 +40,26 @@
         },
         {
             "name": "iqkv.auth",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.AuthConfigurationProperties",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.AuthConfigurationProperties",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.AuthConfigurationProperties",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.AuthConfigurationProperties",
             "description": "Authentication and JWT configuration."
         },
         {
             "name": "iqkv.auth.jwt",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.AuthConfigurationProperties$Jwt",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.AuthConfigurationProperties",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.AuthConfigurationProperties$Jwt",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.AuthConfigurationProperties",
             "description": "JWT token verification settings. Exactly one of jwks-uri or public-key-path must be set."
         },
         {
             "name": "iqkv.objectstorage",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.ObjectStorageConfigurationProperties",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.ObjectStorageConfigurationProperties",
-            "description": "S3-compatible object storage configuration for catalog documents. Supports MinIO (SIT/UAT) and AWS S3 (production)."
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.ObjectStorageConfigurationProperties",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.ObjectStorageConfigurationProperties",
+            "description": "S3-compatible object storage configuration for pitch documents. Supports MinIO (SIT/UAT) and AWS S3 (production)."
         },
         {
             "name": "iqkv.objectstorage.upload",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.ObjectStorageConfigurationProperties$Upload",
-            "sourceType": "com.iqkv.docintelligence.catalogservice.infrastructure.config.ObjectStorageConfigurationProperties",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.ObjectStorageConfigurationProperties$Upload",
+            "sourceType": "com.iqkv.docintelligence.pitchservice.infrastructure.config.ObjectStorageConfigurationProperties",
             "description": "Upload policy constraints applied before an object is sent to storage."
         }
     ],
@@ -80,19 +80,19 @@
             "name": "iqkv.db.name",
             "type": "java.lang.String",
             "description": "Database name.",
-            "defaultValue": "catalogservice"
+            "defaultValue": "pitchservice"
         },
         {
             "name": "iqkv.db.username",
             "type": "java.lang.String",
             "description": "Database username.",
-            "defaultValue": "svc_catalog_dba"
+            "defaultValue": "svc_pitch_dba"
         },
         {
             "name": "iqkv.db.password",
             "type": "java.lang.String",
             "description": "Database password.",
-            "defaultValue": "svc_catalog_dba"
+            "defaultValue": "svc_pitch_dba"
         },
         {
             "name": "iqkv.rabbitmq.host",
@@ -110,13 +110,13 @@
             "name": "iqkv.rabbitmq.username",
             "type": "java.lang.String",
             "description": "RabbitMQ username.",
-            "defaultValue": "svc_catalog_rmq"
+            "defaultValue": "svc_pitch_rmq"
         },
         {
             "name": "iqkv.rabbitmq.password",
             "type": "java.lang.String",
             "description": "RabbitMQ password.",
-            "defaultValue": "svc_catalog_rmq"
+            "defaultValue": "svc_pitch_rmq"
         },
         {
             "name": "iqkv.messaging.rabbitmq.enabled",
@@ -126,7 +126,7 @@
         },
         {
             "name": "iqkv.platform.rollout-mode",
-            "type": "com.iqkv.docintelligence.catalogservice.infrastructure.config.RolloutMode",
+            "type": "com.iqkv.docintelligence.pitchservice.infrastructure.config.RolloutMode",
             "description": "Platform-wide operational mode. Must match across all core services. MULTI_TENANT: each signup creates a new tenant. SINGLE_TENANT: all users join a single pre-provisioned tenant.",
             "defaultValue": "MULTI_TENANT"
         },
@@ -202,7 +202,7 @@
         {
             "name": "iqkv.billing.plan-refresh-interval",
             "type": "java.time.Duration",
-            "description": "How often the entitlement plan catalog cache is refreshed from the billing service.",
+            "description": "How often the entitlement plan pitch cache is refreshed from the billing service.",
             "defaultValue": "PT10M"
         },
         {
@@ -243,8 +243,8 @@
         {
             "name": "iqkv.objectstorage.bucket-name",
             "type": "java.lang.String",
-            "description": "Name of the S3 bucket used to store catalog documents.",
-            "defaultValue": "catalog-assets"
+            "description": "Name of the S3 bucket used to store pitch documents.",
+            "defaultValue": "pitch-assets"
         },
         {
             "name": "iqkv.objectstorage.region",

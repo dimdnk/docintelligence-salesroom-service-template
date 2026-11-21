@@ -6,19 +6,19 @@ This directory contains the DbGate database administration tool configuration fo
 
 The `connections.jsonl` file contains pre-configured connections template for microservice infrastructure:
 
-### 1. PostgreSQL - Catalog Service
+### 1. PostgreSQL - Pitch Service
 
-- **ID**: `postgres-catalog`
-- **Server**: `postgres-catalog:5432`
-- **Database**: `catalogservice`
-- **User**: `svc_catalog_dba`
+- **ID**: `postgres-pitch`
+- **Server**: `postgres-pitch:5432`
+- **Database**: `pitchservice`
+- **User**: `svc_pitch_dba`
 - **Engine**: `postgres@dbgate-plugin-postgres`
 
-### 2. RabbitMQ - Catalog Service
+### 2. RabbitMQ - Pitch Service
 
-- **ID**: `rabbitmq-catalog`
-- **Server**: `rabbitmq-catalog:15672`
-- **User**: `svc_catalog_rmq`
+- **ID**: `rabbitmq-pitch`
+- **Server**: `rabbitmq-pitch:15672`
+- **User**: `svc_pitch_rmq`
 - **Engine**: `rabbitmq@dbgate-plugin-rabbitmq`
 
 ## Template Usage
@@ -157,7 +157,7 @@ ports:
 
 ```bash
 # Check logs
-docker logs foundation-catalog-dbgate-dev
+docker logs docintelligence-pitch-dbgate-dev
 
 # Verify connections file exists
 ls docker/dbgate/connections.jsonl
@@ -170,26 +170,26 @@ docker compose restart dbgate
 
 ```bash
 # Verify PostgreSQL is running and healthy
-docker ps --filter name=foundation-catalog-postgres-dev
+docker ps --filter name=docintelligence-pitch-postgres-dev
 
 # Check PostgreSQL logs
-docker logs foundation-catalog-postgres-dev
+docker logs docintelligence-pitch-postgres-dev
 
 # Test connection from DbGate container
-docker exec foundation-catalog-dbgate-dev ping postgres-catalog
+docker exec docintelligence-pitch-dbgate-dev ping postgres-pitch
 ```
 
 ### Can't connect to RabbitMQ
 
 ```bash
 # Verify RabbitMQ is running
-docker ps --filter name=foundation-catalog-rabbitmq-dev
+docker ps --filter name=docintelligence-pitch-rabbitmq-dev
 
 # Check RabbitMQ logs
-docker logs foundation-catalog-rabbitmq-dev
+docker logs docintelligence-pitch-rabbitmq-dev
 
 # Check management plugin is enabled
-docker exec foundation-catalog-rabbitmq-dev rabbitmq-plugins list
+docker exec docintelligence-pitch-rabbitmq-dev rabbitmq-plugins list
 ```
 
 ### Port 3100 already in use
@@ -212,7 +212,7 @@ docker compose stop dbgate
 docker compose rm -f dbgate
 
 # Remove volume
-docker volume rm docintelligence_catalog_dbgate_data_dev
+docker volume rm docintelligence_pitch_dbgate_data_dev
 
 # Restart
 docker compose up -d dbgate

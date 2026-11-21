@@ -2,13 +2,14 @@
 
 ### Overview
 
-The Document Intelligence Catalog Service is deployed using Helm charts and automated CI/CD pipelines. The service connects to an Ollama instance for LLM connectivity, with JWT RS256 resource-server security validated against the IAM service JWKS endpoint.
+The Document Intelligence Pitch Service is deployed using Helm charts and automated CI/CD pipelines. It serves the tenant-facing Digital Sales Room API, reads the venue library from the catalog service, connects to an Ollama instance for LLM connectivity, and validates JWT RS256 tokens against the IAM service JWKS endpoint.
 
 ### Prerequisites
 
 - Kubernetes 1.19+
 - Helm 3.2.0+
 - External infrastructure services (PostgreSQL, RabbitMQ)
+- `docintelligence-catalog-service` reachable for venue library reads
 - Ollama instance accessible within the cluster (or externally via URL)
 
 ### Environments
@@ -58,7 +59,7 @@ The service uses a Drone CI/CD pipeline with 10 stages:
 | `INFRA_POSTGRESQL_PASSWORD`       | PostgreSQL database password      | Application configuration                  |
 | `INFRA_RABBITMQ_PASSWORD`         | RabbitMQ message broker password  | Application configuration                  |
 
-> No `SMTP_*` secrets required — the Catalog Service does not send email.
+> No `SMTP_*` secrets required — the Pitch Service does not send email.
 
 </details>
 
@@ -77,7 +78,7 @@ The service uses a Drone CI/CD pipeline with 10 stages:
 
 ```bash
 # WIP / Feature branches (SIT)
-helm upgrade --install --atomic --wait --timeout 5m docintelligence-catalog-service ./ \
+helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-service ./ \
   --values ./values.yaml \
   --values ./values-sit.yaml \
   --set image.tag=${DRONE_BRANCH} \
@@ -87,7 +88,7 @@ helm upgrade --install --atomic --wait --timeout 5m docintelligence-catalog-serv
   --create-namespace
 
 # Production (tagged releases)
-helm upgrade --install --atomic --wait --timeout 5m docintelligence-catalog-service ./ \
+helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-service ./ \
   --values ./values.yaml \
   --values ./values-prd.yaml \
   --set image.tag=${DRONE_TAG} \
@@ -106,10 +107,10 @@ helm upgrade --install --atomic --wait --timeout 5m docintelligence-catalog-serv
 ```bash
 # Clone Helm charts
 git clone <HELM_CHARTS_REPOSITORY> charts
-cd charts/IQKV/docintelligence-catalog-service
+cd charts/IQKV/docintelligence-pitch-service
 
 # Deploy to SIT
-helm upgrade --install docintelligence-catalog-service ./ \
+helm upgrade --install docintelligence-pitch-service ./ \
   --values values-sit.yaml \
   --set infraServices.postgresql.password="your-db-password" \
   --set infraServices.rabbitmq.password="your-rabbitmq-password" \
@@ -120,37 +121,40 @@ helm upgrade --install docintelligence-catalog-service ./ \
 #### Secret Configuration Examples
 
 ```bash
-drone secret add --repository IQKV/docintelligence-catalog-service --name INFRA_POSTGRESQL_PASSWORD --data "your-postgresql-password"
-drone secret add --repository IQKV/docintelligence-catalog-service --name INFRA_RABBITMQ_PASSWORD --data "your-rabbitmq-password"
+drone secret add --repository IQKV/docintelligence-pitch-service --name INFRA_POSTGRESQL_PASSWORD --data "your-postgresql-password"
+drone secret add --repository IQKV/docintelligence-pitch-service --name INFRA_RABBITMQ_PASSWORD --data "your-rabbitmq-password"
 ```
 
 #### External Services
 
 The service connects to these external infrastructure components:
 
-- **PostgreSQL**: Service data persistence (system/public schema — no tenant schemas)
-- **RabbitMQ**: Messaging and tenant provisioning consumer
+- **PostgreSQL**: Pitch data persistence — the `public` schema plus one `t_{tenantKey}` schema per provisioned tenant
+- **RabbitMQ**: Messaging and the IAM tenant provisioning consumer
 - **Ollama**: LLM inference endpoint (`http://foundation-ollama:11434` by default)
 - **IAM Service**: JWKS endpoint for JWT validation (`http://foundation-iam-service:8080/.well-known/jwks.json`)
 - **Billing Service**: Plan quota enforcement (`http://foundation-billing-service:8080`)
+- **Catalog Service** (`docintelligence-catalog-service`): owns the venue library this service reads from; client wiring is not implemented in this starter yet
 
 > **Ollama note:** The default values point to `http://foundation-ollama:11434` (in-cluster). For external Ollama instances (e.g. a VDS with GPU), override `ai.ollama.baseUrl` via `--set` or the Helm values file.
 
 #### Ollama Model Setup
 
-After first deployment, pull the required model into Ollama:
+After first deployment, pull the required models into Ollama:
 
 ```bash
 kubectl exec -it deployment/foundation-ollama -n iqkv-sit-env -- ollama pull llama3.1:8b
+kubectl exec -it deployment/foundation-ollama -n iqkv-sit-env -- ollama pull nomic-embed-text
 ```
 
 Or, if using an external Ollama instance:
 
 ```bash
 docker exec <ollama-container> ollama pull llama3.1:8b
+docker exec <ollama-container> ollama pull nomic-embed-text
 ```
 
-The default model is `llama3.1:8b`. Override via `ai.ollama.model` in values or the `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` env var.
+The default chat model is `llama3.1:8b` and the default embedding model is `nomic-embed-text`. Override via `ai.ollama.model` / `ai.ollama.embeddingModel` in values, or the `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` / `SPRING_AI_OLLAMA_EMBEDDING_MODEL` env vars.
 
 #### Service Configuration
 
@@ -193,7 +197,7 @@ UAT and production deployments include:
 1. **Database connection failures**
 
     ```bash
-    kubectl logs deployment/docintelligence-catalog-service -n iqkv-sit-env
+    kubectl logs deployment/docintelligence-pitch-service -n iqkv-sit-env
     ```
 
 2. **JWT validation failures**
@@ -201,20 +205,20 @@ UAT and production deployments include:
     Ensure `config.jwt.jwksUri` points to the correct IAM service JWKS endpoint:
 
     ```bash
-    kubectl describe configmap docintelligence-catalog-service-config -n iqkv-sit-env
+    kubectl describe configmap docintelligence-pitch-service-config -n iqkv-sit-env
     ```
 
 3. **Check configuration**
 
     ```bash
-    kubectl describe configmap docintelligence-catalog-service-config -n iqkv-sit-env
-    kubectl describe secret docintelligence-catalog-service-secrets -n iqkv-sit-env
+    kubectl describe configmap docintelligence-pitch-service-config -n iqkv-sit-env
+    kubectl describe secret docintelligence-pitch-service-secrets -n iqkv-sit-env
     ```
 
 4. **Test health endpoints**
 
     ```bash
-    kubectl port-forward deployment/docintelligence-catalog-service 8081:8081 -n iqkv-sit-env
+    kubectl port-forward deployment/docintelligence-pitch-service 8081:8081 -n iqkv-sit-env
     curl http://localhost:8081/actuator/health
     ```
 
@@ -222,16 +226,16 @@ UAT and production deployments include:
 
 ```bash
 kubectl get secrets -n iqkv-sit-env
-kubectl get secret docintelligence-catalog-service-secrets -n iqkv-sit-env -o yaml
-drone secret ls --repository IQKV/docintelligence-catalog-service
+kubectl get secret docintelligence-pitch-service-secrets -n iqkv-sit-env -o yaml
+drone secret ls --repository IQKV/docintelligence-pitch-service
 ```
 
 #### Rollback
 
 ```bash
-helm rollback docintelligence-catalog-service -n iqkv-prd-env
+helm rollback docintelligence-pitch-service -n iqkv-prd-env
 # Or uninstall completely
-helm uninstall docintelligence-catalog-service -n iqkv-prd-env
+helm uninstall docintelligence-pitch-service -n iqkv-prd-env
 ```
 
 ### Security

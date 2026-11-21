@@ -1,15 +1,15 @@
 services:
-  # PostgreSQL Database for Catalog Service
-  postgres-catalog:
+  # PostgreSQL Database for Pitch Service
+  postgres-pitch:
     extends:
       file: compose.base.yaml
-      service: postgres-catalog
+      service: postgres-pitch
 
-  # RabbitMQ for Catalog Service
-  rabbitmq-catalog:
+  # RabbitMQ for Pitch Service
+  rabbitmq-pitch:
     extends:
       file: compose.base.yaml
-      service: rabbitmq-catalog
+      service: rabbitmq-pitch
 
   # MinIO S3-compatible object storage
   minio:
@@ -54,22 +54,22 @@ services:
       service: grafana
 
 networks:
-  catalog-service-network:
-    name: foundation-catalog-network-dev
+  pitch-service-network:
+    name: docintelligence-pitch-network-dev
     external: false
 
 volumes:
-  postgres_catalog_data:
-    name: docintelligence_catalog_postgres_data_dev
-  rabbitmq_catalog_data:
-    name: docintelligence_catalog_rabbitmq_data_dev
-  minio_catalog_data:
-    name: docintelligence_catalog_minio_data_dev
-  dbgate_catalog_data:
-    name: docintelligence_catalog_dbgate_data_dev
-  catalog_logs:
-    name: docintelligence_catalog_logs_dev
-  catalog_tmp:
-    name: docintelligence_catalog_tmp_dev
-  ollama_catalog_data:
-    name: docintelligence_catalog_ollama_data_dev
+  postgres_pitch_data:
+    name: docintelligence_pitch_postgres_data_dev
+  rabbitmq_pitch_data:
+    name: docintelligence_pitch_rabbitmq_data_dev
+  minio_pitch_data:
+    name: docintelligence_pitch_minio_data_dev
+  dbgate_pitch_data:
+    name: docintelligence_pitch_dbgate_data_dev
+  pitch_logs:
+    name: docintelligence_pitch_logs_dev
+  pitch_tmp:
+    name: docintelligence_pitch_tmp_dev
+  ollama_pitch_data:
+    name: docintelligence_pitch_ollama_data_dev

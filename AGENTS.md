@@ -11,17 +11,17 @@ This document provides comprehensive guidelines for repository management, devel
 This service is organized by **vertical feature slices**, not by DDD layers. Each slice is one
 top-level package that owns everything it needs — REST resources, service contract and
 implementation, DTOs, and slice-specific exceptions. There are deliberately no
-`domain`/`application`/`adapter` packages: the domain model and MyBatis mappers live in the shared
-artifact `com.iqkv:docintelligence-venue` (see “Master venue catalog” below).
+`domain`/`application`/`adapter` packages: the venue domain model and MyBatis mappers live in the
+shared artifact `com.iqkv:docintelligence-venue` (see “Venue library (read-only)” below).
 
 ```
-docintelligence-catalog-service/
+docintelligence-pitch-service/
 ├── .github/workflows/                # GitHub Actions pipelines
 ├── docker/                           # Local stack config (postgres, prometheus, grafana)
 ├── src/
 │   ├── main/
-│   │   ├── java/com/iqkv/docintelligence/catalogservice/
-│   │   │   ├── <feature-slice>/      # One package per vertical slice (e.g. mastervenue, venue, ping)
+│   │   ├── java/com/iqkv/docintelligence/pitchservice/
+│   │   │   ├── <feature-slice>/      # One package per vertical slice (e.g. ping)
 │   │   │   │   ├── <Feature>RestResource.java       # Tenant/public REST surface (TENANT_OWNER/MEMBER)
 │   │   │   │   ├── Admin<Feature>RestResource.java  # Admin REST surface (PLATFORM_ADMIN)
 │   │   │   │   ├── <Feature>Service.java            # Service contract
@@ -37,18 +37,18 @@ docintelligence-catalog-service/
 │   │   │   ├── shared/               # Cross-slice kernel
 │   │   │   │   ├── exception/        # Common exception types
 │   │   │   │   └── util/             # Shared utilities
-│   │   │   └── CatalogServiceApplication.java       # Spring Boot main class
+│   │   │   └── PitchServiceApplication.java       # Spring Boot main class
 │   │   └── resources/
 │   │       ├── application.yml                      # Base configuration
 │   │       ├── application-{local,sit,uat,prd}.yml  # Per-environment profiles
 │   │       ├── db/changelog/{system,tenant}/        # Liquibase changelogs
 │   │       └── i18n/                                # Validation and message bundles
 │   └── test/
-│       └── java/com/iqkv/docintelligence/catalogservice/
+│       └── java/com/iqkv/docintelligence/pitchservice/
 │           ├── <feature-slice>/      # Slice unit + security tests
 │           ├── IntegrationTest.java
 │           ├── TechnicalStructureTest.java          # ArchUnit
-│           └── CatalogServiceApplicationTests.java
+│           └── PitchServiceApplicationTests.java
 ├── .gitignore
 ├── pom.xml                           # Maven build configuration
 ├── README.md
@@ -57,7 +57,7 @@ docintelligence-catalog-service/
 
 **Key structural concepts:**
 
-- **Feature slice**: A self-contained top-level package for one feature (`mastervenue`, `venue`, `ping`) that
+- **Feature slice**: A self-contained top-level package for one feature (e.g. `ping`) that
   holds its REST resources, service contract + implementation, DTOs and slice exceptions. Add a
   feature by adding a sibling package — never introduce `domain`/`application`/`adapter` layers.
 - **Infrastructure**: Cross-cutting technical concerns (config, security, messaging, persistence)
@@ -67,10 +67,9 @@ docintelligence-catalog-service/
 - **Authorities & tenant scoping**: tenant callers carry `TENANT_OWNER`, `MEMBER` or `ADMIN`; platform
   administrators carry `PLATFORM_ADMIN`. Tenant resources guard with `@PreAuthorize` — `hasAuthority('MEMBER')`
   where only members may act, `hasAnyAuthority('TENANT_OWNER', 'MEMBER')` where tenant owners may
-  also act, or `hasAnyAuthority('TENANT_OWNER', 'ADMIN')` for owner/admin writes; the `venue` slice
-  uses all three across its asset, text-content and enrichment surfaces. Tenant context is resolved
-  from the `X-Tenant-ID` header or the JWT `tenant_id` claim for `/api/v1/catalog/**`;
-  `/api/v1/catalog/admin/**` is skipped by `TenantExtractionFilter` and each request is scoped from
+  also act, or `hasAnyAuthority('TENANT_OWNER', 'ADMIN')` for owner/admin writes. Tenant context is
+  resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim for `/api/v1/pitch/**`;
+  `/api/v1/pitch/admin/**` is skipped by `TenantExtractionFilter` and each request is scoped from
   the `{tenantKey}` path variable.
 - **Domain model & persistence**: Owned by the shared artifact `com.iqkv:docintelligence-venue`
   (models + XML mappers), consumed here via `@MapperScan` and `classpath*:mappers/**/*.xml`. This
@@ -79,35 +78,21 @@ docintelligence-catalog-service/
   `domain`/`application`/`adapter` packages present the rule is intentionally permissive — the real
   structural contract is the package layout above.
 
-### Master venue catalog
+### Venue library (read-only)
 
-`public.master_venue*` is platform-owned reference data, not tenant-scoped. This service owns every
-migration for it and serves the admin CRUD surface; `docintelligence-master-venue-worker` is the sole
-writer.
-
-- `master_venue`, `master_venue_alias`, `master_venue_external` —
-  `db/changelog/system/20261020120000-create-master-venue.xml`
-- `master_venue_asset` — `db/changelog/system/20261027120000-create-master-venue-asset.xml`
+The venue library is owned by `docintelligence-catalog-service`; this service consumes it read-only and
+owns no part of the catalog. Venue models and their XML mappers come from the shared artifact
+`com.iqkv:docintelligence-venue`, picked up by the existing `@MapperScan` and
+`classpath*:mappers/**/*.xml` scan — the shared artifact holds no beans and needs no per-mapper wiring.
 
 **Changelog rules**
 
-- A new changeset lives in its own file under `db/changelog/system/`, named after its changeSet id
-  (`<timestamp>-<description>.xml`) and timestamped later than every existing one.
+- This service's own changesets live one per file under `db/changelog/system/`, named after the
+  changeSet id (`<timestamp>-<description>.xml`) and timestamped later than every existing one.
 - Append every new file to `db/changelog/system/db.changelog-system.xml` in timestamp order — that index
   is the only place the changelog list is maintained. Rollbacks drop tables in FK-safe reverse order.
 - `./mvnw verify` never runs Liquibase (the `test` profile disables it and uses H2), so a changelog
   change is only proven against a real Postgres.
-
-**Model and persistence**
-
-- `MasterVenue`, `MasterVenueAsset` and their mappers live in the shared artifact
-  `com.iqkv:docintelligence-venue`; this service consumes them through its existing `@MapperScan` and
-  `classpath*:mappers/**/*.xml` scan, with no per-mapper wiring.
-- The HTTP surface stays here, in the `mastervenue` package (DTOs, `MasterVenueService`,
-  `AdminMasterVenueRestResource`); the shared artifact holds no beans.
-- Master-catalog asset objects are stored under
-  `docintelligence/master-catalog/venues/{venueId}/assets/{assetId}/{fileName}`, where `venueId` and
-  `assetId` are UUIDs without hyphens.
 
 ## Execution Discipline
 
@@ -172,14 +157,14 @@ Format: `type(scope): subject`
 
 - Subject: imperative, lowercase, no trailing period, ≤ 72 chars
 - Types: `feat`, `fix`, `improvement`, `refactor`, `docs`, `test`, `chore`, `ci`, `perf`, `revert`
-- Scope: affected feature slice or technical package (e.g. `mastervenue`, `venue`, `ping`, `security`, `messaging`, `deps`)
+- Scope: affected feature slice or technical package (e.g. `ping`, `security`, `messaging`, `deps`)
 - For `fix`: describe the symptom and trigger, not the code change
     - ✅ `fix(security): unauthenticated requests bypass tenant guard in single-tenant mode`
     - ❌ `fix(security): add missing auth check`
 
 Examples:
 
-- `feat(mastervenue): add soft-delete to master venue`
+- `feat(pitch): add venue selection to a pitch draft`
 - `fix(messaging): consumer silently drops events with unknown tenant key`
 - `refactor(infrastructure): extract CORS config into dedicated properties class`
 - `chore(deps): update spring-boot to 3.5.0`
@@ -302,11 +287,11 @@ Before making recommendations, agents should understand the project's technology
 - Database: PostgreSQL (production), H2 (test scope — smoke context-load only)
 - **MyBatis** with XML mappers — there is no Spring Data JPA / Hibernate in this project
 - `mybatis.configuration.map-underscore-to-camel-case=true` is enabled globally
-- Mapper interfaces annotated with `@Mapper` or discovered via `@MapperScan`; XML mappers ship in their owning artifact and are picked up through `classpath*:mappers/**/*.xml` (the master-venue models and mappers come from `com.iqkv:docintelligence-venue`)
+- Mapper interfaces annotated with `@Mapper` or discovered via `@MapperScan`; XML mappers ship in their owning artifact and are picked up through `classpath*:mappers/**/*.xml` (the venue models and mappers come from `com.iqkv:docintelligence-venue`)
 - Liquibase for schema migrations (`db/changelog/system/db.changelog-system.xml`)
 - **Background jobs** — this service defines no `@Scheduled` tasks and no ShedLock locking; recurring
-  work (e.g. venue embedding backfill) runs in `docintelligence-catalog-processing-worker`. A `shedlock`
-  table migration still ships under `db/changelog/system/`.
+  work belongs in a dedicated worker service (e.g. `docintelligence-catalog-processing-worker` for
+  venue embedding backfill), not here.
 
 **Security**
 
@@ -659,13 +644,13 @@ class UserServiceIntegrationTest {
 **Architecture Tests with ArchUnit:**
 
 ```java
-@AnalyzeClasses(packagesOf = CatalogServiceApplication.class, importOptions = DoNotIncludeTests.class)
+@AnalyzeClasses(packagesOf = PitchServiceApplication.class, importOptions = DoNotIncludeTests.class)
 class TechnicalStructureTest {
 
   @ArchTest
   static final ArchRule respectsTechnicalArchitectureLayers = onionArchitecture()
       .withOptionalLayers(true)
-      .ignoreDependency(belongToAnyOf(CatalogServiceApplication.class), alwaysTrue());
+      .ignoreDependency(belongToAnyOf(PitchServiceApplication.class), alwaysTrue());
 }
 ```
 

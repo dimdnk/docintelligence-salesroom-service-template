@@ -8,10 +8,10 @@
         <version>0.24.63</version>
     </parent>
     <groupId>com.iqkv</groupId>
-    <artifactId>docintelligence-catalog-service</artifactId>
+    <artifactId>docintelligence-pitch-service</artifactId>
     <version>0.0.0-SNAPSHOT</version>
-    <name>Catalog Service</name>
-    <description>Document Intelligence Catalog Service.</description>
+    <name>Pitch Service</name>
+    <description>Document Intelligence Pitch Service.</description>
     <developers>
 
     </developers>
@@ -23,7 +23,7 @@
         <checkstyle.skip>false</checkstyle.skip>
         <maven.gitcommitid.skip>false</maven.gitcommitid.skip>
         <jacoco.skip>true</jacoco.skip>
-        <start-class>com.iqkv.docintelligence.catalogservice.CatalogServiceApplication</start-class>
+        <start-class>com.iqkv.docintelligence.pitchservice.PitchServiceApplication</start-class>
     </properties>
 
     <dependencies>

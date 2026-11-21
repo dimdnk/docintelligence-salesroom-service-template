@@ -1,25 +1,42 @@
-# Document Intelligence Catalog Service 📇
+# Document Intelligence Pitch Service 🚀
 
-A multi-tenant, JWT-secured microservice on the iQ Key Value platform, backed by PostgreSQL, RabbitMQ, MinIO, and Ollama.
+GitHub template for the iQ Key Value platform. A multi-tenant, JWT-secured Spring Boot starter for the **Digital Sales Room for Events** — the client-facing pitch your buyers can actually use.
 
 ## About
 
-The Catalog Service provides:
+**Digital Sales Room for Events** — select venues from your library, generate a branded interactive pitch page in one click, and send the link. Your client browses, asks questions, and approves — no PDF, no account, no back-and-forth.
 
-- **Venue catalog** — multi-tenant venue CRUD with safe projection (curation fields hidden from tenant users); write endpoints require `TENANT_OWNER`/`ADMIN` authority; read endpoints are open to `MEMBER`, `TENANT_OWNER`, or `ADMIN`
-- **Venue asset uploads** — two-phase presigned MinIO upload for venue photos and attachments (initiate → direct upload → confirm) nested under the owning venue, with tenant and admin surfaces mirrored
-- **Venue asset import** — venue-less document upload (PDF/CSV/image) that the processing worker turns into a venue record; the client polls the asset until its derived venue is linked
-- **Venue text contents** — raw/markdown text chunks extracted from venue sources, with keyword and semantic search plus venue linking, on both the tenant and admin surfaces
-- **Venue smart notes** — user-authored sticky notes (title, HTML body, colour, tags, pin, sort order, optional asset link) attached to a venue, with reads/creates open to members and edits/deletes restricted to tenant owners, on both the tenant and admin surfaces
-- **AI venue enrichment** — "fill from source" assistant that extracts one concrete `metadata.items` field from a preloaded venue source document for the UI to review and apply
-- **AI venue chat** — retrieval-augmented Q&A over the tenant's own venues: a stateless one-shot `ask` surface (single venue or ranked list) plus persistent chat sessions, each returning the source chunks the answer cited so the UI can show and act on citations
-- **Master venue catalog** — a platform-curated venue directory exposed read-only to tenants, including asset/photo reads, and with full CRUD plus provenance-aware asset reads to platform administrators
-- **Ollama connectivity** — LLM client pre-wired to a local Ollama instance via `spring.ai.ollama.*` (base URL and model configurable per environment)
+- **Brief to pitch in minutes** — pick venues, click Generate, send a link. Done before the client follows up.
+- **No client login required** — the client opens a link on any device, browses photos and floor plans, and approves.
+- **Questions in context** — the client comments on a specific venue; you answer right there, not scattered across email threads.
+- **Immutable approval record** — on approval, every field, file, and decision is locked with a timestamp. No disputes later.
+- **Who it's for** — event agencies pitching venue shortlists to their clients.
+
+This template ships the platform plumbing. The domain surfaces above are still to be built — see [Planned surfaces](#planned-surfaces).
+
+### What this starter includes
+
+- **Venue library consumption** — venues come from `docintelligence-catalog-service` (read-only); this service owns pitches, not the venue library
+- **Feature-sliced layout** — one package per vertical feature slice; `ping` ships as the reference slice
+- **Three security tiers** — public, tenant JWT (`MEMBER` / `TENANT_OWNER` / `ADMIN`), and platform admin (`PLATFORM_ADMIN`)
 - **Multi-tenant isolation** — tenant context resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim before every request
-- **Persistence** — data stored in PostgreSQL via MyBatis; Liquibase manages system and per-tenant schema migrations
-- **Object storage** — MinIO (S3-compatible) client bound to a private `catalog-assets` bucket; clients receive presigned URLs instead of direct object access
-- **Security** — stateless JWT resource server (RS256); public endpoints can be exposed while admin endpoints require `PLATFORM_ADMIN` authority
-- **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`) on `docintelligence.catalog.tenant.provisioning`, gated by `iqkv.messaging.rabbitmq.enabled`
+- **Persistence** — PostgreSQL via MyBatis (XML mappers); Liquibase manages system and per-tenant schema migrations
+- **Object storage** — MinIO (S3-compatible) client bound to a private `pitch-assets` bucket; clients receive presigned URLs
+- **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`)
+- **AI connectivity** — Spring AI Ollama starter pre-wired via `spring.ai.ollama.*` (base URL and models configurable per environment)
+- **Observability** — Micrometer + Prometheus + structured JSON logging (Logstash encoder)
+- **Quality tooling** — Checkstyle, JaCoCo, ArchUnit, Husky git hooks, commitlint
+
+## Template Usage
+
+1. Click **[Use this template](https://github.com/IQKV/docintelligence-pitch-service/generate)** to create your repository
+2. Replace the remaining `pitchservice` / `PitchService` tokens with your service name (see the token map in `foundation-microservice-project-layout`)
+3. Update `pom.xml` — `artifactId`, `name`, `description`, `start-class`
+4. Rename the Java package from `com.iqkv.docintelligence.pitchservice` to your package
+5. Rename `docker/postgres/init-pitch.sql` and update the `pitchservice` database and `svc_pitch_*` credentials to match
+6. Rename the tenant-provisioning queue and DLQ in `RabbitMQConfig` (`docintelligence.pitch.tenant.provisioning`) to your service name
+7. Remove unused dependencies from `pom.xml` (e.g. `spring-ai-starter-model-ollama` if no LLM integration is needed)
+8. Add your feature slices as sibling packages under `com.iqkv.docintelligence.pitchservice`
 
 ## Quick Links
 
@@ -30,7 +47,7 @@ The Catalog Service provides:
 
 ## API
 
-Base path: `/api/v1/catalog`
+Base path: `/api/v1/pitch`
 
 ### Ping
 
@@ -40,197 +57,15 @@ Base path: `/api/v1/catalog`
 | `GET`  | `/tenant/ping` | JWT + `X-Tenant-ID`  | Tenant-scoped probe — echoes the resolved tenant key                  |
 | `GET`  | `/admin/ping`  | JWT `PLATFORM_ADMIN` | Admin probe — echoes the caller's `user_id` claim                     |
 
-### Master venues
+### Planned surfaces
 
-Read-only tenant surface. Responses use the public projection — `confidence`, `source`, raw `metadata`, and asset provenance fields (`sourceUrl`, `provider`) are not exposed.
+`ping` is the only shipped surface — no domain endpoints exist yet. The slices below are the ones the Digital Sales Room brief calls for:
 
-| Method | Path                         | Auth         | Description                                                                            |
-| :----- | :--------------------------- | :----------- | :------------------------------------------------------------------------------------- |
-| `GET`  | `/master-venues`             | JWT `MEMBER` | Search by keyword (`search`) and exact city (`city`), paginated via `limit` / `offset` |
-| `GET`  | `/master-venues/{id}`        | JWT `MEMBER` | Fetch a single master venue by UUID                                                    |
-| `GET`  | `/master-venues/{id}/assets` | JWT `MEMBER` | List all assets of a venue, ordered by `displayOrder`, without ingestion provenance    |
-| `GET`  | `/master-venues/{id}/photos` | JWT `MEMBER` | List only `PHOTO` assets for gallery use, ordered by `displayOrder`                    |
-
-### Venues
-
-Full CRUD over the tenant's own venue records. Read endpoints require the `MEMBER`, `TENANT_OWNER`, or `ADMIN` authority; write endpoints require `TENANT_OWNER` or `ADMIN`. Tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim. Responses use the safe projection — `confidence` and `source` are not exposed; `metadata` is included so tenants can read and edit their own venue metadata document; `primaryPhotoUrl` carries a time-limited presigned URL for the venue's primary photo when one exists; the optional `masterVenueId` relation key is kept.
-
-| Method   | Path                      | Auth                                | Description                                                                                                                               |
-| :------- | :------------------------ | :---------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/venues`                 | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Search by keyword (`search`) and exact city (`city`), with optional sort; paginated via `limit` / `offset`                                |
-| `GET`    | `/venues/{id}`            | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Fetch a single tenant venue by UUID                                                                                                       |
-| `GET`    | `/venues/search/semantic` | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | AI semantic search; query is parsed by an LLM planner into hard filters + a vector query; optional `city` override, `limit` capped at 100 |
-| `POST`   | `/venues`                 | JWT `TENANT_OWNER`/`ADMIN`          | Create a venue in the active tenant schema; curation fields initialised to safe defaults; returns `201`                                   |
-| `PUT`    | `/venues/{id}`            | JWT `TENANT_OWNER`/`ADMIN`          | Full replace of tenant-visible fields; curation fields are not modified; returns `404` if not found                                       |
-| `PATCH`  | `/venues/{id}`            | JWT `TENANT_OWNER`/`ADMIN`          | Partial update — only non-null fields are overwritten; curation fields are never modified                                                 |
-| `PATCH`  | `/venues/{id}/metadata`   | JWT `TENANT_OWNER`/`ADMIN`          | Replace the full metadata document; other fields are untouched                                                                            |
-| `DELETE` | `/venues/{id}`            | JWT `TENANT_OWNER`/`ADMIN`          | Permanently deletes the venue; returns `204`                                                                                              |
-| `DELETE` | `/venues`                 | JWT `TENANT_OWNER`/`ADMIN`          | Bulk delete up to 100 venues by id list; idempotent; returns `204`                                                                        |
-
-`DELETE /venues` takes a JSON body of `{"ids": [uuid, ...]}` (1–100 ids). Ids that match no venue are silently ignored; empty or oversized lists are rejected with `400`.
-
-### Venue assets
-
-Two-phase presigned upload for venue photos and attachments, plus list, detail, preview, and delete. Upload initiation and reads require `TENANT_OWNER` or `MEMBER` authority; delete requires `TENANT_OWNER` or `ADMIN`. Tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim. Assets are nested under their owning venue.
-
-| Method   | Path                                        | Auth                        | Description                                                                                                                            |
-| :------- | :------------------------------------------ | :-------------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/venues/{venueId}/assets/initiate`         | JWT `TENANT_OWNER`/`MEMBER` | Validate declared content type and size, mint a presigned S3 `PUT` URL, return `assetId` + `objectKey`; no row persisted until confirm |
-| `POST`   | `/venues/{venueId}/assets/{id}/confirm`     | JWT `TENANT_OWNER`/`MEMBER` | Validate object key and confirm object exists in storage; persists asset metadata; returns `400` on key mismatch or missing object     |
-| `GET`    | `/venues/{venueId}/assets`                  | JWT `TENANT_OWNER`/`MEMBER` | List all assets of the venue ordered by `displayOrder`                                                                                 |
-| `GET`    | `/venues/{venueId}/assets/photos`           | JWT `TENANT_OWNER`/`MEMBER` | List only `PHOTO` assets for gallery use, ordered by `displayOrder`                                                                    |
-| `GET`    | `/venues/{venueId}/assets/{id}`             | JWT `TENANT_OWNER`/`MEMBER` | Fetch a single asset; returns `404` when the venue or asset is not found or not owned by that venue                                    |
-| `GET`    | `/venues/{venueId}/assets/{id}/preview-url` | JWT `TENANT_OWNER`/`MEMBER` | Mint a short-lived presigned `GET` URL for the stored object (images and PDFs alike)                                                   |
-| `DELETE` | `/venues/{venueId}/assets/{id}`             | JWT `TENANT_OWNER`/`ADMIN`  | Permanently deletes the asset row and removes the object from storage (best-effort); returns `204`                                     |
-
-The client uploads directly to MinIO using the presigned `PUT` URL returned by `initiate`, then calls `confirm` with the `objectKey`. The object key is tenant-scoped, so `confirm` validates ownership by exact key match. Storage removal on delete is best-effort — a MinIO failure is logged but does not prevent the row from being deleted.
-
-### Venue asset import
-
-Venue-less document upload (PDF/CSV/image) from which `docintelligence-catalog-processing-worker` derives the venue record. Requires `TENANT_OWNER` or `MEMBER` authority; the object key is tenant-scoped. The two-phase presigned flow is identical to venue assets, but `confirm` persists the asset with a `null` venue and status `UPLOADED` so the worker picks it up.
-
-| Method | Path                         | Auth                        | Description                                                                                   |
-| :----- | :--------------------------- | :-------------------------- | :-------------------------------------------------------------------------------------------- |
-| `POST` | `/venue-assets/initiate`     | JWT `TENANT_OWNER`/`MEMBER` | Mint a presigned S3 `PUT` URL; return `assetId` + `objectKey`; no row persisted until confirm |
-| `POST` | `/venue-assets/{id}/confirm` | JWT `TENANT_OWNER`/`MEMBER` | Validate the object key and object, persist the venue-less asset with status `UPLOADED`       |
-| `GET`  | `/venue-assets/{id}`         | JWT `TENANT_OWNER`/`MEMBER` | Poll the asset and its processing status                                                      |
-
-The status lifecycle is `UPLOADED` → `PARSING` → `EXTRACTED` (the derived venue is linked — see `venueId`) or `FAILED` (see `failureReason`).
-
-### Venue enrichment
-
-AI-assisted single-field extraction for the tenant UI "fill from source" flow. Requires `TENANT_OWNER` or `MEMBER` authority; tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim. The tenant picks one concrete `metadata.items` row plus one preloaded source document, and the endpoint returns the value found for that field. When the chat model is unreachable or the AI feature flag is off, `extract` still returns `200` with `found=false`.
-
-| Method | Path                                   | Auth                        | Description                                                                                                                                                                                    |
-| :----- | :------------------------------------- | :-------------------------- | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST` | `/venues/{venueId}/enrichment/extract` | JWT `TENANT_OWNER`/`MEMBER` | Extract one `group`/`field` value from the chosen `sourceTextId`, constrained to the field's `valueType`/`allowedValues`; returns the value plus verbatim evidence (`found=false` when absent) |
-
-Applying an extracted value is done through `PATCH /venues/{venueId}/metadata`.
-
-### Venue ask
-
-Retrieval-augmented question answering over the tenant's own venue data — the answer is returned together with the source chunks it was grounded in, so the UI can show citations. Requires `TENANT_OWNER` or `MEMBER` authority; tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim. When the AI feature is off or the model is unreachable, the surface degrades to `answered=false` (with any sources found) rather than failing.
-
-| Method | Path                        | Auth                        | Description                                                                                                                                                                               |
-| :----- | :-------------------------- | :-------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST` | `/venues/{venueId}/ask`     | JWT `TENANT_OWNER`/`MEMBER` | Answer a natural-language question grounded in one venue's profile, source text chunks and assets; returns the answer with `sources`                                                      |
-| `GET`  | `/venues/{venueId}/context` | JWT `TENANT_OWNER`/`MEMBER` | Return the venue's retrieved context — profile, source chunks and assets — without any model call                                                                                         |
-| `POST` | `/venues/ask`               | JWT `TENANT_OWNER`/`MEMBER` | Answer a question grounded in the ranked list of venues; the query is planned into hard filters plus a residual vector query, and the reply carries the ranked venues and applied filters |
-
-Each cited source carries `sourceTextId`, `assetId`, `label`, verbatim `snippet`, `page` (1-based; `null` when the source has no pages) and `similarity`. The ask paths answer `400` on an empty question, a prompt-injection rejection or an unresolvable tenant, `401` for a missing or invalid JWT, `403` when the caller lacks the required authority, and `404` when the venue does not exist.
-
-### Venue chat
-
-Conversational chat over the tenant's venue catalogue, with sessions and messages persisted in the active tenant schema and owned by the authenticated user — another user's session resolves to `404`. Requires `TENANT_OWNER` or `MEMBER` authority; tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim. The routes mirror the UI chat client contract so a client can point here by swapping the endpoint base only.
-
-| Method   | Path                                  | Auth                        | Description                                                                                                                                                                                      |
-| :------- | :------------------------------------ | :-------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/chat`                               | JWT `TENANT_OWNER`/`MEMBER` | Send one message and return the reply; a null `sessionId` starts a session, an owned `sessionId` resumes it; an optional `venueId` grounds the turn in one venue and returns the cited `sources` |
-| `GET`    | `/chat/sessions`                      | JWT `TENANT_OWNER`/`MEMBER` | List the caller's sessions, most recently updated first; paginated via `limit` (default 20) / `offset`                                                                                           |
-| `GET`    | `/chat/sessions/{sessionId}/messages` | JWT `TENANT_OWNER`/`MEMBER` | List an owned session's messages, oldest first; paginated via `limit` (default 50) / `offset`                                                                                                    |
-| `DELETE` | `/chat/sessions/{sessionId}`          | JWT `TENANT_OWNER`/`MEMBER` | Delete an owned session together with its messages; returns `204`                                                                                                                                |
-
-`POST /chat` takes `sessionId?`, `venueId?`, `content`, `model?` and `persona?`. A blank `persona` resolves server-side to the configured default overlay (`iqkv.catalog.venue-ask.default-persona`, pinned to `compliance` for MVP); an unknown key falls back to the base assistant — the persona names a server-side key, so client input never reaches the system message. Cited `sources` are persisted on the assistant message so they survive a reload; a catalogue-grounded reply (no `venueId`) cites nothing. When the AI feature is off or the model is unreachable the endpoint returns `200` with a canned reply. Chat paths answer `400` on an empty message, a prompt-injection rejection or an unresolvable tenant, `401`, `403`, and `404` when the session does not exist or is not owned by the caller.
-
-### Venue text contents
-
-Raw or markdown text chunks extracted from venue source documents. Reads require `MEMBER`, `TENANT_OWNER`, or `ADMIN`; writes require `TENANT_OWNER` or `ADMIN`. Tenant context is resolved from the `X-Tenant-ID` header or JWT `tenant_id` claim.
-
-| Method   | Path                                   | Auth                                | Description                                                                                           |
-| :------- | :------------------------------------- | :---------------------------------- | :---------------------------------------------------------------------------------------------------- |
-| `GET`    | `/venue-text-contents`                 | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Keyword search over `content`, optionally filtered by `venueId`; paginated via `limit` / `offset`     |
-| `GET`    | `/venue-text-contents/venue/{venueId}` | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | List all rows linked to the given venue                                                               |
-| `GET`    | `/venue-text-contents/{id}`            | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Fetch a single row; returns `404` when it does not exist                                              |
-| `GET`    | `/venue-text-contents/search/semantic` | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Semantic search — rank embedded rows by cosine similarity; optional `venueId` filter, `limit` max 100 |
-| `POST`   | `/venue-text-contents`                 | JWT `TENANT_OWNER`/`ADMIN`          | Create a row; `venueId` is optional (the row may be linked later); returns `201`                      |
-| `PATCH`  | `/venue-text-contents/{id}`            | JWT `TENANT_OWNER`/`ADMIN`          | Update `content`; only non-null fields are overwritten                                                |
-| `POST`   | `/venue-text-contents/{id}/link`       | JWT `TENANT_OWNER`/`ADMIN`          | Set `venueId` on a row created before the venue was derived                                           |
-| `DELETE` | `/venue-text-contents/{id}`            | JWT `TENANT_OWNER`/`ADMIN`          | Permanently deletes the row; returns `204`                                                            |
-
-### Venue smart notes
-
-User-authored sticky notes attached to a venue (Google Keep-style): title, HTML content, background colour, `text[]` tags, author, optional asset link, sort order and pin flag. Reads and creates are open to any tenant member; edits, deletes and pin toggles require `TENANT_OWNER` or `ADMIN`. The author is recorded from the JWT `user_id` claim at create time and is never taken from the request body.
-
-| Method   | Path                                       | Auth                                | Description                                                                                                                 |
-| :------- | :----------------------------------------- | :---------------------------------- | :-------------------------------------------------------------------------------------------------------------------------- |
-| `GET`    | `/venue-smart-notes/venue/{venueId}`       | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | List notes for a venue, ordered by `sortOrder` then `createdAt` (`direction` param: `ASC`/`DESC`); optional `pinned` filter |
-| `GET`    | `/venue-smart-notes/venue/{venueId}/count` | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Count notes for a venue                                                                                                     |
-| `GET`    | `/venue-smart-notes/{id}`                  | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Fetch a single note; returns `404` when it does not exist                                                                   |
-| `GET`    | `/venue-smart-notes/{id}/asset`            | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Load the venue asset linked to the note; returns `404` when the note has no linked asset                                    |
-| `POST`   | `/venue-smart-notes`                       | JWT `MEMBER`/`TENANT_OWNER`/`ADMIN` | Create a note; author from JWT `user_id`; returns `201`                                                                     |
-| `PATCH`  | `/venue-smart-notes/{id}`                  | JWT `TENANT_OWNER`/`ADMIN`          | Update title/content/color/tags/linkedAssetId/sortOrder/pinned; only non-null fields are overwritten                        |
-| `PUT`    | `/venue-smart-notes/{id}/pinned`           | JWT `TENANT_OWNER`/`ADMIN`          | Pin or unpin a note in a single call                                                                                        |
-| `DELETE` | `/venue-smart-notes/{id}`                  | JWT `TENANT_OWNER`/`ADMIN`          | Permanently deletes the note; returns `204`                                                                                 |
-
-### Admin
-
-Full CRUD over the master venue catalog, using the admin projection (all curation fields included). Admin asset reads also expose ingestion provenance such as `sourceUrl` and `provider`.
-
-| Method   | Path                               | Auth                 | Description                                                              |
-| :------- | :--------------------------------- | :------------------- | :----------------------------------------------------------------------- |
-| `GET`    | `/admin/master-venues`             | JWT `PLATFORM_ADMIN` | Search across the whole catalog, paginated                               |
-| `GET`    | `/admin/master-venues/{id}`        | JWT `PLATFORM_ADMIN` | Fetch a single master venue by UUID                                      |
-| `GET`    | `/admin/master-venues/{id}/assets` | JWT `PLATFORM_ADMIN` | List all assets of a venue, ordered by `displayOrder`, with provenance   |
-| `GET`    | `/admin/master-venues/{id}/photos` | JWT `PLATFORM_ADMIN` | List only `PHOTO` assets for gallery use                                 |
-| `POST`   | `/admin/master-venues`             | JWT `PLATFORM_ADMIN` | Create a master venue; returns `201` with the created resource           |
-| `PUT`    | `/admin/master-venues/{id}`        | JWT `PLATFORM_ADMIN` | Replace a master venue in full                                           |
-| `PATCH`  | `/admin/master-venues/{id}`        | JWT `PLATFORM_ADMIN` | Partially update a master venue; omitted fields keep their current value |
-| `DELETE` | `/admin/master-venues/{id}`        | JWT `PLATFORM_ADMIN` | Delete a master venue; returns `204`                                     |
-| `DELETE` | `/admin/master-venues`             | JWT `PLATFORM_ADMIN` | Bulk delete master venues; idempotent, returns `204`                     |
-
-`DELETE /admin/master-venues` takes a JSON body of `{"ids": [uuid, ...]}` (1–100 ids) and removes every matching venue in one transaction. Deleting a venue removes its aliases and external provider records through the database cascade; ids that match no venue are silently ignored, so the request can be retried safely. Empty or oversized id lists are rejected with `400`.
-
-### Venues (admin)
-
-Full CRUD over tenant venue records. Requires the `PLATFORM_ADMIN` authority; each request is scoped to the tenant in the `{tenantKey}` path variable (`/api/v1/catalog/admin/{tenantKey}/venues`).
-
-| Method   | Path                                        | Auth                 | Description                                                                            |
-| :------- | :------------------------------------------ | :------------------- | :------------------------------------------------------------------------------------- |
-| `GET`    | `/admin/{tenantKey}/venues`                 | JWT `PLATFORM_ADMIN` | Search by keyword (`search`) and exact city (`city`), paginated via `limit` / `offset` |
-| `GET`    | `/admin/{tenantKey}/venues/search/semantic` | JWT `PLATFORM_ADMIN` | Semantic (vector) search over tenant venues — AI query planner + cosine similarity     |
-| `GET`    | `/admin/{tenantKey}/venues/{id}`            | JWT `PLATFORM_ADMIN` | Fetch a single tenant venue by UUID                                                    |
-| `POST`   | `/admin/{tenantKey}/venues`                 | JWT `PLATFORM_ADMIN` | Create a tenant venue; returns `201`                                                   |
-| `PUT`    | `/admin/{tenantKey}/venues/{id}`            | JWT `PLATFORM_ADMIN` | Replace a tenant venue in full                                                         |
-| `PATCH`  | `/admin/{tenantKey}/venues/{id}`            | JWT `PLATFORM_ADMIN` | Partially update a tenant venue; omitted fields keep their current value               |
-| `DELETE` | `/admin/{tenantKey}/venues/{id}`            | JWT `PLATFORM_ADMIN` | Delete a tenant venue; returns `204`                                                   |
-
-A venue carries an optional `masterVenueId` relation key to a master catalog record. `POST` and `PUT` take a write payload (`name`, `address`, `city`, `locationLat`, `locationLng`, `metadata`, `confidence`, `source`, `masterVenueId`); `PATCH` takes the same shape with every field optional. Omitted `metadata` defaults to the canonical empty document and omitted `confidence` to `1.0`. `{id}` paths answer `404` when the venue does not exist in that tenant schema. `GET .../search/semantic` runs an AI query planner that extracts hard filters (city, venue type, capacity, catering, amenities, accessibility) and ranks the embedded venues by cosine similarity using the per-tenant pgvector index; only venues already carrying an embedding are considered, and a disabled or unreachable planner falls back to embedding the raw query with no filters. An optional explicit `city` parameter overrides the city the planner extracts; `limit` is capped at 100.
-
-### Venue assets (admin)
-
-Two-phase presigned upload for tenant venue photos and attachments, plus list, detail, preview, and delete, on behalf of the tenant named in the `{tenantKey}` path variable (`/api/v1/catalog/admin/{tenantKey}/venues/{venueId}/assets`). Requires the `PLATFORM_ADMIN` authority; each request is scoped to that tenant's schema and `uploadedBy` is the calling administrator's `user_id`.
-
-| Method   | Path                                                          | Auth                 | Description                                                                                                                            |
-| :------- | :------------------------------------------------------------ | :------------------- | :------------------------------------------------------------------------------------------------------------------------------------- |
-| `POST`   | `/admin/{tenantKey}/venues/{venueId}/assets/initiate`         | JWT `PLATFORM_ADMIN` | Validate declared content type and size, mint a presigned S3 `PUT` URL, return `assetId` + `objectKey`; no row persisted until confirm |
-| `POST`   | `/admin/{tenantKey}/venues/{venueId}/assets/{id}/confirm`     | JWT `PLATFORM_ADMIN` | Validate object key and confirm object exists in storage; persists asset metadata; returns `400` on key mismatch or missing object     |
-| `GET`    | `/admin/{tenantKey}/venues/{venueId}/assets`                  | JWT `PLATFORM_ADMIN` | List all assets of the venue ordered by `displayOrder`                                                                                 |
-| `GET`    | `/admin/{tenantKey}/venues/{venueId}/assets/photos`           | JWT `PLATFORM_ADMIN` | List only `PHOTO` assets for gallery use, ordered by `displayOrder`                                                                    |
-| `GET`    | `/admin/{tenantKey}/venues/{venueId}/assets/{id}`             | JWT `PLATFORM_ADMIN` | Fetch a single asset; returns `404` when the venue or asset is not found or not owned by that venue                                    |
-| `GET`    | `/admin/{tenantKey}/venues/{venueId}/assets/{id}/preview-url` | JWT `PLATFORM_ADMIN` | Mint a short-lived presigned `GET` URL for the stored object                                                                           |
-| `DELETE` | `/admin/{tenantKey}/venues/{venueId}/assets/{id}`             | JWT `PLATFORM_ADMIN` | Permanently deletes the asset row and removes the object from storage (best-effort); returns `204`                                     |
-
-The upload flow and error semantics match the tenant `Venue assets` section above; tenant resolution comes from the `{tenantKey}` path variable instead of the request tenant context.
-
-### Venue asset import (admin)
-
-Venue-less import on behalf of the tenant named in the `{tenantKey}` path variable (`/api/v1/catalog/admin/{tenantKey}/venue-assets`). Requires the `PLATFORM_ADMIN` authority; `confirm` persists the asset with a `null` venue and status `UPLOADED` for the processing worker to derive the venue.
-
-| Method | Path                                           | Auth                 | Description                                                                                |
-| :----- | :--------------------------------------------- | :------------------- | :----------------------------------------------------------------------------------------- |
-| `POST` | `/admin/{tenantKey}/venue-assets/initiate`     | JWT `PLATFORM_ADMIN` | Mint a presigned `PUT` URL; returns `assetId` + `objectKey`                                |
-| `POST` | `/admin/{tenantKey}/venue-assets/{id}/confirm` | JWT `PLATFORM_ADMIN` | Confirm the upload and persist the venue-less asset with status `UPLOADED`                 |
-| `GET`  | `/admin/{tenantKey}/venue-assets/{id}`         | JWT `PLATFORM_ADMIN` | Poll the asset and its processing status (`UPLOADED` → `PARSING` → `EXTRACTED` / `FAILED`) |
-
-### Venue text contents (admin)
-
-Raw/markdown text-content rows on behalf of the tenant named in the `{tenantKey}` path variable (`/api/v1/catalog/admin/{tenantKey}/venue-text-contents`). Requires the `PLATFORM_ADMIN` authority. Mirrors the tenant surface: search, list by venue, get, semantic search, create, patch, link, and delete.
-
-### Venue smart notes (admin)
-
-User-authored smart notes on behalf of the tenant named in the `{tenantKey}` path variable (`/api/v1/catalog/admin/{tenantKey}/venue-smart-notes`). Requires the `PLATFORM_ADMIN` authority. Mirrors the tenant surface: list by venue (with `direction` and `pinned` filters), get, linked-asset load, create (author from the admin's JWT `user_id`), patch, pin toggle, and delete.
-
-> Auth legend: `public` = no token required; `JWT` = valid Bearer token required; `JWT MEMBER` = tenant member authority required; `JWT TENANT_OWNER/MEMBER` = tenant owner or member authority required; `JWT TENANT_OWNER/ADMIN` = tenant owner or admin authority required; `JWT PLATFORM_ADMIN` = platform administrator authority required.
+- **Venue selection** — search the venue library and add venues to a pitch
+- **Pitch generation** — one click renders the selected venues as a branded, interactive client page
+- **Share links** — client-scoped links that open on any device with no account
+- **Client engagement** — photo and floor-plan browsing, plus per-venue comments and Q&A answered in context
+- **Approval** — client approval locks every field, file, and decision into an immutable, timestamped record
 
 ## Tech Stack
 
@@ -244,12 +79,6 @@ User-authored smart notes on behalf of the tenant named in the `{tenantKey}` pat
 - Micrometer + Prometheus
 - springdoc-openapi (Swagger UI)
 
-## Observability
-
-- **Actuator endpoints** — `health` (liveness + readiness probes), `info`, `metrics`, and `prometheus` exposed on the management port (`8081`)
-- **Structured logging** — JSON log output via the Logstash encoder; every request carries a correlation ID set by `CorrelationIdFilter`
-- **Metrics** — no service-specific custom meters yet; the Micrometer/Prometheus registry exposes the standard JVM, HTTP, and Spring Boot meters
-
 ## Prerequisites
 
 - JDK 25 (Eclipse Temurin)
@@ -261,9 +90,9 @@ User-authored smart notes on behalf of the tenant named in the `{tenantKey}` pat
 ## Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/IQKV/docintelligence-catalog-service.git
-cd docintelligence-catalog-service
+# Clone or use as template
+git clone https://github.com/IQKV/docintelligence-pitch-service.git my-service
+cd my-service
 
 # Install git hooks
 pnpm install
@@ -273,9 +102,9 @@ ollama pull llama3.2
 
 # Copy environment variables
 cp .env.example .env.local
-# Defaults point to Ollama on localhost:11434 — no edits needed for first-run
+# Defaults point to Ollama on localhost:11434 — no API key needed for local dev
 
-# Start infrastructure dependencies (PostgreSQL, RabbitMQ, MinIO)
+# Start dependencies (PostgreSQL, RabbitMQ, MinIO, etc.)
 docker compose up -d
 
 # Run the service
@@ -284,35 +113,35 @@ docker compose up -d
 # → Actuator:     http://localhost:8081/actuator/health
 # → Swagger:      http://localhost:8080/swagger-ui.html
 # → MinIO:        http://localhost:9003 (console)
+# → DbGate:       http://localhost:3100
 ```
 
 ## Environment Variables
 
-| Variable                              | Default                  | Description                                   |
-| :------------------------------------ | :----------------------- | :-------------------------------------------- |
-| `DB_HOST`                             | `localhost`              | PostgreSQL host                               |
-| `DB_PORT`                             | `5432`                   | PostgreSQL port                               |
-| `DB_NAME`                             | `catalogservice`         | Database name                                 |
-| `DB_USERNAME`                         | `svc_catalog_dba`        | Database user                                 |
-| `DB_PASSWORD`                         | `svc_catalog_dba`        | Database password                             |
-| `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                                 |
-| `RABBITMQ_PORT`                       | `5672`                   | RabbitMQ AMQP port                            |
-| `RABBITMQ_USERNAME`                   | `svc_catalog_rmq`        | RabbitMQ user                                 |
-| `RABBITMQ_PASSWORD`                   | `svc_catalog_rmq`        | RabbitMQ password                             |
-| `OBJECTSTORAGE_ENDPOINT`              | `http://localhost:9000`  | S3-compatible endpoint (MinIO in SIT/UAT)     |
-| `OBJECTSTORAGE_PUBLIC_ENDPOINT`       | _(empty)_                | Public URL used to rewrite presigned URLs     |
-| `OBJECTSTORAGE_ACCESS_KEY`            | `iqkv`                   | S3 access key                                 |
-| `OBJECTSTORAGE_SECRET_KEY`            | `iqkv_password`          | S3 secret key                                 |
-| `OBJECTSTORAGE_BUCKET_NAME`           | `catalog-assets`         | Private bucket holding catalog assets         |
-| `OBJECTSTORAGE_REGION`                | `us-east-1`              | S3 region                                     |
-| `OBJECTSTORAGE_SSL`                   | `false`                  | Use HTTPS for the S3 endpoint                 |
-| `SPRING_PROFILES_ACTIVE`              | `local`                  | Active Spring profile                         |
-| `MESSAGING_ENABLED`                   | `false`                  | Maps to `iqkv.messaging.rabbitmq.enabled`     |
-| `SPRING_AI_OLLAMA_BASE_URL`           | `http://localhost:11434` | Ollama server URL                             |
-| `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` | `llama3.2`               | Model to use (must be pulled in Ollama first) |
-| `ROLLOUT_MODE`                        | `MULTI_TENANT`           | Platform rollout mode                         |
+| Variable                              | Default                  | Description                               |
+| :------------------------------------ | :----------------------- | :---------------------------------------- |
+| `DB_HOST`                             | `localhost`              | PostgreSQL host                           |
+| `DB_PORT`                             | `5432`                   | PostgreSQL port                           |
+| `DB_NAME`                             | `pitchservice`           | Database name                             |
+| `DB_USERNAME`                         | `svc_pitch_dba`          | Database user                             |
+| `DB_PASSWORD`                         | `svc_pitch_dba`          | Database password                         |
+| `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                             |
+| `RABBITMQ_PORT`                       | `5672`                   | RabbitMQ AMQP port                        |
+| `RABBITMQ_USERNAME`                   | `svc_pitch_rmq`          | RabbitMQ user                             |
+| `RABBITMQ_PASSWORD`                   | `svc_pitch_rmq`          | RabbitMQ password                         |
+| `OBJECTSTORAGE_ENDPOINT`              | `http://localhost:9000`  | S3-compatible endpoint (MinIO in SIT/UAT) |
+| `OBJECTSTORAGE_PUBLIC_ENDPOINT`       | _(empty)_                | Public URL used to rewrite presigned URLs |
+| `OBJECTSTORAGE_ACCESS_KEY`            | `iqkv`                   | S3 access key                             |
+| `OBJECTSTORAGE_SECRET_KEY`            | `iqkv_password`          | S3 secret key                             |
+| `OBJECTSTORAGE_BUCKET_NAME`           | `pitch-assets`           | Private bucket holding pitch assets       |
+| `OBJECTSTORAGE_REGION`                | `us-east-1`              | S3 region                                 |
+| `OBJECTSTORAGE_SSL`                   | `false`                  | Use HTTPS for the S3 endpoint             |
+| `MESSAGING_ENABLED`                   | `false`                  | Maps to `iqkv.messaging.rabbitmq.enabled` |
+| `SPRING_AI_OLLAMA_BASE_URL`           | `http://localhost:11434` | Ollama server URL                         |
+| `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` | `llama3.2`               | Model name (must be pulled in Ollama)     |
+| `ROLLOUT_MODE`                        | `MULTI_TENANT`           | Platform rollout mode                     |
 
-> Copy `.env.example` to `.env.local` / `.env.uat` / `.env.prd` and fill in values per environment. The defaults point to a local Ollama instance — no API key needed for local development.
+> Copy `.env.example` to `.env.local` / `.env.uat` / `.env.prd` and fill in values per environment.
 > The local Compose stack publishes MinIO on host port `9002` (console on `9003`) — set `OBJECTSTORAGE_ENDPOINT=http://localhost:9002` when running the service outside Docker.
 
 ## Maven Commands
@@ -338,64 +167,69 @@ docker compose up -d
 
 ```bash
 # Build image
-docker build -t iqkv/docintelligence-catalog-service:latest .
+docker build -t iqkv/docintelligence-pitch-service:latest .
 
-# Run with full platform stack
+# Run full stack (service + dependencies)
 docker compose -f compose.container.yaml up -d
 ```
 
 ## Monitoring
 
-| Endpoint                   | Description                      |
-| :------------------------- | :------------------------------- |
-| `GET /actuator/health`     | Liveness + readiness probes      |
-| `GET /actuator/info`       | Build info and platform metadata |
-| `GET /actuator/metrics`    | Application metrics              |
-| `GET /actuator/prometheus` | Prometheus scrape endpoint       |
-| `GET /swagger-ui.html`     | API documentation                |
+| Endpoint                   | Description                 |
+| :------------------------- | :-------------------------- |
+| `GET /actuator/health`     | Liveness + readiness probes |
+| `GET /actuator/metrics`    | Application metrics         |
+| `GET /actuator/prometheus` | Prometheus scrape endpoint  |
+| `GET /swagger-ui.html`     | API documentation           |
+| `GET /` (on port 9003)     | MinIO Console               |
+| `GET /` (on port 3000)     | Grafana dashboards          |
+| `GET /` (on port 9090)     | Prometheus UI               |
 
 ## Project Structure
 
 ```
-src/main/java/com/iqkv/docintelligence/catalogservice/
-├── mastervenue/      # Master venue catalog — tenant read-only + admin full CRUD
-│   ├── dto/          # Request/response records and the DTO mapper
-│   ├── AdminMasterVenueRestResource.java
-│   ├── MasterVenueRestResource.java
-│   ├── MasterVenueService.java
-│   └── MasterVenueServiceImpl.java
-├── venue/            # Tenant venue catalog — tenant CRUD + admin full CRUD + semantic search + assets + text contents + smart notes + enrichment
-│   ├── dto/          # Request/response records and the DTO mappers
-│   ├── AdminVenueAssetImportRestResource.java
-│   ├── AdminVenueAssetRestResource.java
-│   ├── AdminVenueRestResource.java
-│   ├── AdminVenueSmartNoteRestResource.java
-│   ├── AdminVenueTextContentRestResource.java
-│   ├── VenueAssetImportRestResource.java
-│   ├── VenueAssetRestResource.java
-│   ├── VenueAssetService.java
-│   ├── VenueAssetServiceImpl.java
-│   ├── VenueEnrichmentAssistRestResource.java
-│   ├── VenueEnrichmentAssistantService.java
-│   ├── VenueRestResource.java
-│   ├── VenueService.java
-│   ├── VenueServiceImpl.java
-│   ├── VenueSmartNoteRestResource.java
-│   ├── VenueSmartNoteService.java
-│   ├── VenueSmartNoteServiceImpl.java
-│   ├── VenueTextContentRestResource.java
-│   ├── VenueTextContentService.java
-│   └── VenueTextContentServiceImpl.java
-├── venueask/         # AI venue chat — one-shot ask + persistent chat sessions (RAG with citations)
-├── ping/             # Reachability probes across the three security tiers
-├── infrastructure/   # Technical concerns: Spring config, RabbitMQ, Security, MyBatis, Object storage
-├── shared/           # Common exceptions, utilities, value objects
-└── CatalogServiceApplication.java
+.
+├── docker/                           # Local stack config (postgres, prometheus, grafana)
+├── docs/                             # API, architecture, deployment
+├── src/main/java/com/iqkv/docintelligence/pitchservice/
+│   ├── ping/                         # Reference feature slice — probes for the three security tiers
+│   ├── infrastructure/               # Cross-cutting technical concerns, no business logic
+│   │   ├── config/                   # Spring config, properties, global exception handler
+│   │   ├── security/                 # Correlation-id and tenant-extraction filters, JWT claim names
+│   │   ├── persistence/              # MyBatis / datasource configuration
+│   │   └── messaging/                # RabbitMQ configuration and tenant provisioning consumer
+│   └── shared/                       # Cross-slice kernel — common exceptions and utilities
+└── src/main/resources/
+    ├── application.yml               # Base configuration
+    ├── application-{local,sit,uat,prd}.yml
+    ├── db/changelog/{system,tenant}/ # Liquibase changelogs
+    └── i18n/                         # Validation and message bundles
 ```
+
+New domain features go in as sibling packages next to `ping/` — one package per feature slice, holding its REST resources, service contract and implementation, DTOs and slice exceptions.
 
 ## License
 
 This project is licensed under the Apache License. See the [LICENSE](LICENSE) file for details.
+
+## Branch Strategy
+
+> **Template note:** The strategy below is the default shipped with this template. Replace it with whatever model fits your team — update branch names, CI triggers, and protection rules to match.
+
+This template uses **scaled trunk-based development**:
+
+- `dev` is the trunk — always stable and deployable
+- Short-lived feature/bugfix branches merge into `dev` via pull request
+- Releases are cut from `dev` as annotated tags (`v1.2.0`) — no separate release branch
+
+```
+dev  ← trunk
+├── feature/*
+├── bugfix/*
+├── improvement/*
+├── hotfix/*
+└── rfc/*
+```
 
 ## Contributing
 
@@ -405,15 +239,17 @@ Please read our [Contributing Guidelines](.github/CONTRIBUTING.md) and [Code of 
 
 ## 🧩 Architecture
 
-- **Ollama**: LLM connectivity configured via `spring.ai.ollama.*` (`SPRING_AI_OLLAMA_BASE_URL`, `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL`)
-- **AI / RAG**: the `venueask` slice answers questions over the tenant's own venues, grounding the model in the venue profile, extracted text chunks and assets, and returning the cited sources; the one-shot `ask` surface and the persistent `chat` sessions both degrade to `answered=false` when the model is unavailable
-- **Persistence**: MyBatis with XML mappers + PostgreSQL; Liquibase manages system and per-tenant schema migrations
-- **Object storage**: MinIO S3-compatible client (`OBJECTSTORAGE_*`); the `catalog-assets` bucket stays private and clients receive presigned URLs
-- **Messaging**: RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`) bound to the shared `iqkv.events` exchange; `iqkv.messaging.rabbitmq.enabled` toggle — disabled in base profile, enabled per environment
-- **Security**: Spring Security + OAuth2 Resource Server; RS256 JWT validated via public key or JWKS URI; `@PreAuthorize` on protected endpoints; tenant context resolved before request handling
-- **API tiers**: public (`/ping`), tenant (`MEMBER` authority, read-only), and admin (`PLATFORM_ADMIN` authority, full CRUD) — mirrored per bounded context
-- **Multi-tenancy**: `ROLLOUT_MODE` (`MULTI_TENANT` | `SINGLE_TENANT`) — must be identical across all platform services
-- **Observability**: Micrometer + Prometheus; structured JSON logging with Logstash encoder; health probes for Kubernetes readiness/liveness
-- **Quality Tools**: Checkstyle, JaCoCo (60% gate), ArchUnit, commit convention enforcement
+- **Venue library** — owned by `docintelligence-catalog-service`; this service reads venue data and stores only pitch-scoped records
+- **API tiers** — public (`/ping`), tenant (JWT + resolved tenant context), and platform admin (`PLATFORM_ADMIN`); mirrored per feature slice
+- **Security** — Spring Security + OAuth2 Resource Server; RS256 JWT validated through the IAM JWKS endpoint (deployed) or a classpath PEM key (local dev / tests); `@PreAuthorize` on protected endpoints
+- **Multi-tenancy** — `ROLLOUT_MODE` (`MULTI_TENANT` | `SINGLE_TENANT`) — must be identical across all platform services; tenant data lives in a `t_{tenantKey}` schema
+- **Persistence** — MyBatis with XML mappers + PostgreSQL; Liquibase manages system and per-tenant schema migrations
+- **Object storage** — MinIO S3-compatible client (`OBJECTSTORAGE_*`); the `pitch-assets` bucket stays private and clients receive presigned URLs
+- **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`) bound to the shared `iqkv.events` exchange; `iqkv.messaging.rabbitmq.enabled` toggle — disabled in base, enabled per profile
+- **AI** — Ollama connectivity configured via `spring.ai.ollama.*` (`SPRING_AI_OLLAMA_BASE_URL`, `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL`, `SPRING_AI_OLLAMA_EMBEDDING_MODEL`); no AI feature slice ships yet
+- **Observability** — Micrometer + Prometheus; structured JSON logging with Logstash encoder; health probes for Kubernetes
+- **Credential convention** — DB users follow `svc_{service}_dba`, RabbitMQ users follow `svc_{service}_rmq`
+- **GitHub Integration** — Issue templates, labels, Dependabot, and CI workflows
+- **Quality Tools** — Checkstyle, JaCoCo (60% gate), ArchUnit, commit convention enforcement
 
-> See [AGENTS.md](AGENTS.md) for repository structure, DDD patterns, and agent guidelines.
+> See [AGENTS.md](AGENTS.md) for repository structure, feature-slice conventions, and agent guidelines.
