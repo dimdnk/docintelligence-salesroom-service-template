@@ -37,7 +37,7 @@ Two conventions apply to every non-public path:
 
 No domain endpoints are implemented yet — `ping` is the only shipped surface. New surfaces arrive as feature slices, each mirroring the public / tenant / admin tiers above. The slices the Digital Sales Room brief calls for:
 
-- **Venue selection** — search the venue library (`docintelligence-catalog-service`) and add venues to a pitch
+- **Venue selection** — search the venue library in the shared catalog database and add venues to a pitch
 - **Pitch generation** — one click renders the selected venues as a branded, interactive client page
 - **Share links** — client-scoped links that open on any device with no account
 - **Client engagement** — photo and floor-plan browsing, plus per-venue comments and Q&A answered in context

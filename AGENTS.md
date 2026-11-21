@@ -12,7 +12,7 @@ This service is organized by **vertical feature slices**, not by DDD layers. Eac
 top-level package that owns everything it needs — REST resources, service contract and
 implementation, DTOs, and slice-specific exceptions. There are deliberately no
 `domain`/`application`/`adapter` packages: the venue domain model and MyBatis mappers live in the
-shared artifact `com.iqkv:docintelligence-venue` (see “Venue library (read-only)” below).
+shared artifact `com.iqkv:docintelligence-venue` (see “Venue library (shared database)” below).
 
 ```
 docintelligence-pitch-service/
@@ -71,19 +71,18 @@ docintelligence-pitch-service/
   resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim for `/api/v1/pitch/**`;
   `/api/v1/pitch/admin/**` is skipped by `TenantExtractionFilter` and each request is scoped from
   the `{tenantKey}` path variable.
-- **Domain model & persistence**: Owned by the shared artifact `com.iqkv:docintelligence-venue`
-  (models + XML mappers), consumed here via `@MapperScan` and `classpath*:mappers/**/*.xml`. This
-  service carries no `domain`, `application` or `adapter` packages.
+- **Domain model & persistence**: The venue model and XML mappers come from the shared artifact
+  `com.iqkv:docintelligence-venue`, consumed here via `@MapperScan` and `classpath*:mappers/**/*.xml`.
+  In production this service uses the **same database as `docintelligence-catalog-service`**, so venue
+  data is read directly with no cross-service calls. This service carries no `domain`, `application`
+  or `adapter` packages.
 - **ArchUnit**: `TechnicalStructureTest` runs `onionArchitecture().withOptionalLayers(true)`. With no
   `domain`/`application`/`adapter` packages present the rule is intentionally permissive — the real
   structural contract is the package layout above.
 
-### Venue library (read-only)
+### Venue library (shared database)
 
-The venue library is owned by `docintelligence-catalog-service`; this service consumes it read-only and
-owns no part of the catalog. Venue models and their XML mappers come from the shared artifact
-`com.iqkv:docintelligence-venue`, picked up by the existing `@MapperScan` and
-`classpath*:mappers/**/*.xml` scan — the shared artifact holds no beans and needs no per-mapper wiring.
+In production this service connects to the **same PostgreSQL database as `docintelligence-catalog-service`**, so venue and pitch data are managed and read in one place. The venue model and XML mappers are already on the classpath via the shared artifact `com.iqkv:docintelligence-venue`, picked up by the existing `@MapperScan` and `classpath*:mappers/**/*.xml` scan — no client calls and no per-mapper wiring are needed. This service owns pitches, not the venue library.
 
 **Changelog rules**
 
@@ -284,7 +283,7 @@ Before making recommendations, agents should understand the project's technology
 
 **Data & Persistence**
 
-- Database: PostgreSQL (production), H2 (test scope — smoke context-load only)
+- Database: PostgreSQL — the same database as `docintelligence-catalog-service` in production (shared for easy cross-service data access); H2 for the test scope (smoke context-load only)
 - **MyBatis** with XML mappers — there is no Spring Data JPA / Hibernate in this project
 - `mybatis.configuration.map-underscore-to-camel-case=true` is enabled globally
 - Mapper interfaces annotated with `@Mapper` or discovered via `@MapperScan`; XML mappers ship in their owning artifact and are picked up through `classpath*:mappers/**/*.xml` (the venue models and mappers come from `com.iqkv:docintelligence-venue`)

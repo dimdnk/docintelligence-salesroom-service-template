@@ -2,14 +2,14 @@
 
 ### Overview
 
-The Document Intelligence Pitch Service is deployed using Helm charts and automated CI/CD pipelines. It serves the tenant-facing Digital Sales Room API, reads the venue library from the catalog service, connects to an Ollama instance for LLM connectivity, and validates JWT RS256 tokens against the IAM service JWKS endpoint.
+The Document Intelligence Pitch Service is deployed using Helm charts and automated CI/CD pipelines. It serves the tenant-facing Digital Sales Room API, reads the venue library straight from the shared catalog database through the shared venue data layer, connects to an Ollama instance for LLM connectivity, and validates JWT RS256 tokens against the IAM service JWKS endpoint.
 
 ### Prerequisites
 
 - Kubernetes 1.19+
 - Helm 3.2.0+
 - External infrastructure services (PostgreSQL, RabbitMQ)
-- `docintelligence-catalog-service` reachable for venue library reads
+- Access to the shared catalog PostgreSQL database (the same database as `docintelligence-catalog-service`) for venue library reads
 - Ollama instance accessible within the cluster (or externally via URL)
 
 ### Environments
@@ -129,12 +129,12 @@ drone secret add --repository IQKV/docintelligence-pitch-service --name INFRA_RA
 
 The service connects to these external infrastructure components:
 
-- **PostgreSQL**: Pitch data persistence — the `public` schema plus one `t_{tenantKey}` schema per provisioned tenant
+- **PostgreSQL**: Pitch data persistence — the same database as `docintelligence-catalog-service` in production (shared so venue and pitch data are managed in one place), holding the `public` schema plus one `t_{tenantKey}` schema per provisioned tenant
 - **RabbitMQ**: Messaging and the IAM tenant provisioning consumer
 - **Ollama**: LLM inference endpoint (`http://foundation-ollama:11434` by default)
 - **IAM Service**: JWKS endpoint for JWT validation (`http://foundation-iam-service:8080/.well-known/jwks.json`)
 - **Billing Service**: Plan quota enforcement (`http://foundation-billing-service:8080`)
-- **Catalog Service** (`docintelligence-catalog-service`): owns the venue library this service reads from; client wiring is not implemented in this starter yet
+- **Catalog Service** (`docintelligence-catalog-service`): owns the venue library, which lives in the same database. This service reads venues directly through the shared `docintelligence-venue` data layer on the classpath — no cross-service calls or client wiring needed
 
 > **Ollama note:** The default values point to `http://foundation-ollama:11434` (in-cluster). For external Ollama instances (e.g. a VDS with GPU), override `ai.ollama.baseUrl` via `--set` or the Helm values file.
 

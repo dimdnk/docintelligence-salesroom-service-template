@@ -16,11 +16,11 @@ This template ships the platform plumbing. The domain surfaces above are still t
 
 ### What this starter includes
 
-- **Venue library consumption** — venues come from `docintelligence-catalog-service` (read-only); this service owns pitches, not the venue library
+- **Venue library access** — reads venues from the shared catalog database via the `com.iqkv:docintelligence-venue` data layer already on the classpath; this service owns pitches, not the venue library
 - **Feature-sliced layout** — one package per vertical feature slice; `ping` ships as the reference slice
 - **Three security tiers** — public, tenant JWT (`MEMBER` / `TENANT_OWNER` / `ADMIN`), and platform admin (`PLATFORM_ADMIN`)
 - **Multi-tenant isolation** — tenant context resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim before every request
-- **Persistence** — PostgreSQL via MyBatis (XML mappers); Liquibase manages system and per-tenant schema migrations
+- **Persistence** — PostgreSQL via MyBatis (XML mappers); the same database as `docintelligence-catalog-service` in production; Liquibase manages system and per-tenant schema migrations
 - **Object storage** — MinIO (S3-compatible) client bound to a private `pitch-assets` bucket; clients receive presigned URLs
 - **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`)
 - **AI connectivity** — Spring AI Ollama starter pre-wired via `spring.ai.ollama.*` (base URL and models configurable per environment)
@@ -122,7 +122,7 @@ docker compose up -d
 | :------------------------------------ | :----------------------- | :---------------------------------------- |
 | `DB_HOST`                             | `localhost`              | PostgreSQL host                           |
 | `DB_PORT`                             | `5432`                   | PostgreSQL port                           |
-| `DB_NAME`                             | `pitchservice`           | Database name                             |
+| `DB_NAME`                             | `pitchservice`           | Database name (the shared catalog database in production) |
 | `DB_USERNAME`                         | `svc_pitch_dba`          | Database user                             |
 | `DB_PASSWORD`                         | `svc_pitch_dba`          | Database password                         |
 | `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                             |
@@ -239,7 +239,7 @@ Please read our [Contributing Guidelines](.github/CONTRIBUTING.md) and [Code of 
 
 ## 🧩 Architecture
 
-- **Venue library** — owned by `docintelligence-catalog-service`; this service reads venue data and stores only pitch-scoped records
+- **Venue library** — owned by `docintelligence-catalog-service` and read straight from the shared database (same PostgreSQL database in production) via the `com.iqkv:docintelligence-venue` data layer; this service stores only pitch-scoped records
 - **API tiers** — public (`/ping`), tenant (JWT + resolved tenant context), and platform admin (`PLATFORM_ADMIN`); mirrored per feature slice
 - **Security** — Spring Security + OAuth2 Resource Server; RS256 JWT validated through the IAM JWKS endpoint (deployed) or a classpath PEM key (local dev / tests); `@PreAuthorize` on protected endpoints
 - **Multi-tenancy** — `ROLLOUT_MODE` (`MULTI_TENANT` | `SINGLE_TENANT`) — must be identical across all platform services; tenant data lives in a `t_{tenantKey}` schema
