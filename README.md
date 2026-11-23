@@ -27,17 +27,6 @@ This template ships the platform plumbing. The domain surfaces above are still t
 - **Observability** — Micrometer + Prometheus + structured JSON logging (Logstash encoder)
 - **Quality tooling** — Checkstyle, JaCoCo, ArchUnit, Husky git hooks, commitlint
 
-## Template Usage
-
-1. Click **[Use this template](https://github.com/IQKV/docintelligence-salesroom-service/generate)** to create your repository
-2. Replace the remaining `salesroomservice` / `SalesRoomService` tokens with your service name (see the token map in `foundation-microservice-project-layout`)
-3. Update `pom.xml` — `artifactId`, `name`, `description`, `start-class`
-4. Rename the Java package from `com.iqkv.docintelligence.salesroomservice` to your package
-5. Rename `docker/postgres/init-salesroom.sql` and update the `salesroomservice` database and `svc_salesroom_*` credentials to match
-6. Rename the tenant-provisioning queue and DLQ in `RabbitMQConfig` (`docintelligence.salesroom.tenant.provisioning`) to your service name
-7. Remove unused dependencies from `pom.xml` (e.g. `spring-ai-starter-model-ollama` if no LLM integration is needed)
-8. Add your feature slices as sibling packages under `com.iqkv.docintelligence.salesroomservice`
-
 ## Quick Links
 
 - [API Documentation](./docs/api/README.md)
