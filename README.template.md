@@ -112,29 +112,29 @@ docker compose up -d
 
 ## Environment Variables
 
-| Variable                              | Default                  | Description                                   |
-| :------------------------------------ | :----------------------- | :-------------------------------------------- |
-| `DB_HOST`                             | `localhost`              | PostgreSQL host                               |
-| `DB_PORT`                             | `5432`                   | PostgreSQL port                               |
-| `DB_NAME`                             | `salesroomservice`           | Database name (the shared catalog database in production) |
-| `DB_USERNAME`                         | `svc_salesroom_dba`          | Database user                                 |
-| `DB_PASSWORD`                         | `svc_salesroom_dba`          | Database password                             |
-| `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                                 |
-| `RABBITMQ_PORT`                       | `5672`                   | RabbitMQ AMQP port                            |
-| `RABBITMQ_USERNAME`                   | `svc_salesroom_rmq`          | RabbitMQ user                                 |
-| `RABBITMQ_PASSWORD`                   | `svc_salesroom_rmq`          | RabbitMQ password                             |
-| `OBJECTSTORAGE_ENDPOINT`              | `http://localhost:9000`  | S3-compatible endpoint (MinIO in SIT/UAT)     |
-| `OBJECTSTORAGE_PUBLIC_ENDPOINT`       | _(empty)_                | Public URL used to rewrite presigned URLs     |
-| `OBJECTSTORAGE_ACCESS_KEY`            | `iqkv`                   | S3 access key                                 |
-| `OBJECTSTORAGE_SECRET_KEY`            | `iqkv_password`          | S3 secret key                                 |
-| `OBJECTSTORAGE_BUCKET_NAME`           | `salesroom-assets`           | Private bucket holding salesroom assets           |
-| `OBJECTSTORAGE_REGION`                | `us-east-1`              | S3 region                                     |
-| `OBJECTSTORAGE_SSL`                   | `false`                  | Use HTTPS for the S3 endpoint                 |
-| `SPRING_PROFILES_ACTIVE`              | `local`                  | Active Spring profile                         |
-| `MESSAGING_ENABLED`                   | `false`                  | Maps to `iqkv.messaging.rabbitmq.enabled`     |
-| `SPRING_AI_OLLAMA_BASE_URL`           | `http://localhost:11434` | Ollama server URL                             |
-| `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` | `llama3.2`               | Model to use (must be pulled in Ollama first) |
-| `ROLLOUT_MODE`                        | `MULTI_TENANT`           | Platform rollout mode                         |
+| Variable                              | Default                  | Description                                               |
+| :------------------------------------ | :----------------------- | :-------------------------------------------------------- |
+| `DB_HOST`                             | `localhost`              | PostgreSQL host                                           |
+| `DB_PORT`                             | `5432`                   | PostgreSQL port                                           |
+| `DB_NAME`                             | `salesroomservice`       | Database name (the shared catalog database in production) |
+| `DB_USERNAME`                         | `svc_salesroom_dba`      | Database user                                             |
+| `DB_PASSWORD`                         | `svc_salesroom_dba`      | Database password                                         |
+| `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                                             |
+| `RABBITMQ_PORT`                       | `5672`                   | RabbitMQ AMQP port                                        |
+| `RABBITMQ_USERNAME`                   | `svc_salesroom_rmq`      | RabbitMQ user                                             |
+| `RABBITMQ_PASSWORD`                   | `svc_salesroom_rmq`      | RabbitMQ password                                         |
+| `OBJECTSTORAGE_ENDPOINT`              | `http://localhost:9000`  | S3-compatible endpoint (MinIO in SIT/UAT)                 |
+| `OBJECTSTORAGE_PUBLIC_ENDPOINT`       | _(empty)_                | Public URL used to rewrite presigned URLs                 |
+| `OBJECTSTORAGE_ACCESS_KEY`            | `iqkv`                   | S3 access key                                             |
+| `OBJECTSTORAGE_SECRET_KEY`            | `iqkv_password`          | S3 secret key                                             |
+| `OBJECTSTORAGE_BUCKET_NAME`           | `salesroom-assets`       | Private bucket holding salesroom assets                   |
+| `OBJECTSTORAGE_REGION`                | `us-east-1`              | S3 region                                                 |
+| `OBJECTSTORAGE_SSL`                   | `false`                  | Use HTTPS for the S3 endpoint                             |
+| `SPRING_PROFILES_ACTIVE`              | `local`                  | Active Spring profile                                     |
+| `MESSAGING_ENABLED`                   | `false`                  | Maps to `iqkv.messaging.rabbitmq.enabled`                 |
+| `SPRING_AI_OLLAMA_BASE_URL`           | `http://localhost:11434` | Ollama server URL                                         |
+| `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL` | `llama3.2`               | Model to use (must be pulled in Ollama first)             |
+| `ROLLOUT_MODE`                        | `MULTI_TENANT`           | Platform rollout mode                                     |
 
 > Copy `.env.example` to `.env.local` / `.env.uat` / `.env.prd` and fill in values per environment. The defaults point to a local Ollama instance — no API key needed for local development.
 > The local Compose stack publishes MinIO on host port `9002` (console on `9003`) — set `OBJECTSTORAGE_ENDPOINT=http://localhost:9002` when running the service outside Docker.
