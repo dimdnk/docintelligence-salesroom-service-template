@@ -97,6 +97,31 @@ The service shares the docintelligence PostgreSQL instance but owns its own tabl
 
 > Initial, indicative list only. Tables and columns are expected to change as the slices in [Planned surfaces](#planned-surfaces) are built.
 
+## Design Decisions (MVP)
+
+Two rules shape every table above.
+
+**1. References to source assets are application-level, not database constraints.**
+
+Venue ids, asset keys and author ids are stored as plain values. No database foreign key links a sales room row to a catalog, storage or IAM record — the application validates the reference, and catalog venues are read read-only. Keeping the boundary in the database itself means the storage layer can be extracted into its own database later without rewriting constraints, and a venue, file or user disappearing from its source never cascades into pitch history.
+
+**2. Sales room content is label/value data, not fixed columns.**
+
+A pitch, a proposal, or any panel inside them stores its content as label + value pairs, each marked optional or required. The system provides a set of variants (schemas) a planner can pick as a starting point, but that choice is a starting point, not a limit — the planner stays free to build their own presentation of that document or screen. Because the shape is data rather than columns:
+
+- One or more venues can be attached to a pitch. Where the catalog values fit, they sync straight into the deal documents.
+- Where they do not fit, the planner or deal owner edits any value on the record by hand.
+- Values that belong to the client side, such as comments and value notes, stay editable by the planner's client as well.
+
+The required/optional marking is what keeps that freedom usable: required values must be filled before a pitch is shared or approved.
+
+What the two rules buy us:
+
+- The catalog keeps its own concerns (ingestion, extraction, search, master venue). A sales room never inherits them, so a change on either side stays inside its own service.
+- A different event case, or a lower level of data quality, is still just a different label and value set.
+- The same board renders with different layouts, skins and themes without touching the stored data.
+- What varies per agency and per deal is content and presentation. Tenancy, provisioning, storage and metrics stay fixed underneath, which is what keeps the platform operable as SaaS.
+
 ## Tech Stack
 
 - Java 25 / Spring Boot (latest via parent POM)
