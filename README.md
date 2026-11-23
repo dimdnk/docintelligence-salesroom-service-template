@@ -27,6 +27,29 @@ This template ships the platform plumbing. The domain surfaces above are still t
 - **Observability** — Micrometer + Prometheus + structured JSON logging (Logstash encoder)
 - **Quality tooling** — Checkstyle, JaCoCo, ArchUnit, Husky git hooks, commitlint
 
+## Targets
+
+The test for this service is not feature parity with the established digital sales room tools. It is whether an event planner can do, with venues and their own client, the same job those tools let a generic B2B seller do: share a living page, see engagement, take questions in context, present options and prices, and end in an approval both sides trust.
+
+The table below is the honest checklist. Left column is what buyers already expect from a sales room tool, right column is what "useful" means for us.
+
+| Business case                        | What today's sales room tools do                                                 | What we target                                                                                                   |
+| :----------------------------------- | :------------------------------------------------------------------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| Share a live page, not a PDF         | One branded link, updated in place, no buyer account                             | The shortlist itself as the page: venues, photos, floor plans, capacity, availability                            |
+| Know when the buyer engaged          | View counts, time on page, per-recipient tracking, alerts for the seller         | Planner sees whether and when the client opened the pitch and which venues held attention                        |
+| Ask and answer in context            | Buyer comments on a specific block; the thread stays attached to it              | Client comments on a venue; the planner answers in the same thread, so Q&A never drifts into email               |
+| Present options side by side         | Multiple packages or tiers with pricing, selectable by the buyer                 | Venue options per venue with the planner's own package pricing and inclusions                                    |
+| Let the buyer choose, not just read  | Buyer picks a package, declines alternatives, states preferences                 | Client marks each venue favourite, maybe or rejected, and the planner sees the shape of the decision             |
+| Agree next steps                     | Mutual action plan: owners, dates, visible to both sides                         | Agreed steps toward the event, attached to the shortlist rather than a separate tool                             |
+| Collect formal sign-off              | Approval or e-signature that closes the deal and locks the content               | Client approval of the chosen option, frozen with a timestamp, a content hash and the venue data it was based on |
+| Keep everything in one place         | Content library, collateral, and the page never fragment across email and drives | Media, notes and pricing stay on the board; the client never receives a stale attachment                         |
+| Separate internal from client-facing | Seller-only notes and folders hidden from the buyer                              | Planner annotations and reasoning stay private; only published content reaches the client                        |
+| Control access                       | Link permissions, expiry, revocation                                             | Revocable share links with no client login, retained through the event date plus 30 days                         |
+
+What those tools cannot give us is the input. Their pages start from a document the seller uploads. Ours starts from the planner's own venue library, so options carry the planner's real venue intelligence instead of a file somebody retyped.
+
+> Deliberately not in scope for this service: e-signature with legal weight, CRM pipeline sync, and seller-to-seller chat. Those belong to the tools the planner already pays for.
+
 ## Quick Links
 
 - [API Documentation](./docs/api/README.md)
@@ -55,6 +78,24 @@ Base path: `/api/v1/salesroom`
 - **Share links** — client-scoped links that open on any device with no account
 - **Client engagement** — photo and floor-plan browsing, plus per-venue comments and Q&A answered in context
 - **Approval** — client approval locks every field, file, and decision into an immutable, timestamped record
+
+## Tenant Schema (planned)
+
+The service shares the docintelligence PostgreSQL instance but owns its own tables, created in the `t_{tenantKey}` schema by this service's tenant changelog when IAM emits `tenant.created`. Catalog venues are referenced by id and read read-only — no database foreign key crosses the service boundary, so pitch data stays intact even if a venue leaves the library. Assets live in the private `salesroom-assets` bucket; only their metadata is stored here.
+
+| Table                    | Side    | Purpose                                                                                                                               |
+| :----------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------ |
+| `salesroom_boards`       | planner | The salesroom itself — slug, share token, title, event context, branding, status (`DRAFT` → `SHARED` → `APPROVED` → `ARCHIVED`)       |
+| `salesroom_board_venues` | planner | The picked catalog venue rows (venue id + position) with the planner's annotation and a frozen venue metadata snapshot                |
+| `salesroom_options`      | planner | Planner-offered options per venue entry — package name, inclusions and price breakdown                                                |
+| `salesroom_price_items`  | planner | Line items behind an option's price: label, quantity, unit price, currency                                                            |
+| `salesroom_media`        | planner | Photos, floor plans and documents attached to a board, venue entry or option; the file sits in S3, the row holds the key and metadata |
+| `salesroom_comments`     | both    | Two-sided Q&A — planner and client comments on a board, venue entry or option, answered in context                                    |
+| `salesroom_markers`      | client  | Client's per-venue or per-option reaction — favourite, maybe, rejected                                                                |
+| `salesroom_activity`     | both    | Activity feed — views, shares, comments, marker changes and approvals                                                                 |
+| `salesroom_approvals`    | client  | Immutable, timestamped approval snapshot: frozen content hash plus approver identity                                                  |
+
+> Initial, indicative list only. Tables and columns are expected to change as the slices in [Planned surfaces](#planned-surfaces) are built.
 
 ## Tech Stack
 
