@@ -15,12 +15,12 @@ implementation, DTOs, and slice-specific exceptions. There are deliberately no
 shared artifact `com.iqkv:docintelligence-venue` (see “Venue library (shared database)” below).
 
 ```
-docintelligence-pitch-service/
+docintelligence-salesroom-service/
 ├── .github/workflows/                # GitHub Actions pipelines
 ├── docker/                           # Local stack config (postgres, prometheus, grafana)
 ├── src/
 │   ├── main/
-│   │   ├── java/com/iqkv/docintelligence/pitchservice/
+│   │   ├── java/com/iqkv/docintelligence/salesroomservice/
 │   │   │   ├── <feature-slice>/      # One package per vertical slice (e.g. ping)
 │   │   │   │   ├── <Feature>RestResource.java       # Tenant/public REST surface (TENANT_OWNER/MEMBER)
 │   │   │   │   ├── Admin<Feature>RestResource.java  # Admin REST surface (PLATFORM_ADMIN)
@@ -37,18 +37,18 @@ docintelligence-pitch-service/
 │   │   │   ├── shared/               # Cross-slice kernel
 │   │   │   │   ├── exception/        # Common exception types
 │   │   │   │   └── util/             # Shared utilities
-│   │   │   └── PitchServiceApplication.java       # Spring Boot main class
+│   │   │   └── SalesRoomServiceApplication.java       # Spring Boot main class
 │   │   └── resources/
 │   │       ├── application.yml                      # Base configuration
 │   │       ├── application-{local,sit,uat,prd}.yml  # Per-environment profiles
 │   │       ├── db/changelog/{system,tenant}/        # Liquibase changelogs
 │   │       └── i18n/                                # Validation and message bundles
 │   └── test/
-│       └── java/com/iqkv/docintelligence/pitchservice/
+│       └── java/com/iqkv/docintelligence/salesroomservice/
 │           ├── <feature-slice>/      # Slice unit + security tests
 │           ├── IntegrationTest.java
 │           ├── TechnicalStructureTest.java          # ArchUnit
-│           └── PitchServiceApplicationTests.java
+│           └── SalesRoomServiceApplicationTests.java
 ├── .gitignore
 ├── pom.xml                           # Maven build configuration
 ├── README.md
@@ -68,8 +68,8 @@ docintelligence-pitch-service/
   administrators carry `PLATFORM_ADMIN`. Tenant resources guard with `@PreAuthorize` — `hasAuthority('MEMBER')`
   where only members may act, `hasAnyAuthority('TENANT_OWNER', 'MEMBER')` where tenant owners may
   also act, or `hasAnyAuthority('TENANT_OWNER', 'ADMIN')` for owner/admin writes. Tenant context is
-  resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim for `/api/v1/pitch/**`;
-  `/api/v1/pitch/admin/**` is skipped by `TenantExtractionFilter` and each request is scoped from
+  resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim for `/api/v1/salesroom/**`;
+  `/api/v1/salesroom/admin/**` is skipped by `TenantExtractionFilter` and each request is scoped from
   the `{tenantKey}` path variable.
 - **Domain model & persistence**: The venue model and XML mappers come from the shared artifact
   `com.iqkv:docintelligence-venue`, consumed here via `@MapperScan` and `classpath*:mappers/**/*.xml`.
@@ -82,7 +82,7 @@ docintelligence-pitch-service/
 
 ### Venue library (shared database)
 
-In production this service connects to the **same PostgreSQL database as `docintelligence-catalog-service`**, so venue and pitch data are managed and read in one place. The venue model and XML mappers are already on the classpath via the shared artifact `com.iqkv:docintelligence-venue`, picked up by the existing `@MapperScan` and `classpath*:mappers/**/*.xml` scan — no client calls and no per-mapper wiring are needed. This service owns pitches, not the venue library.
+In production this service connects to the **same PostgreSQL database as `docintelligence-catalog-service`**, so venue and salesroom data are managed and read in one place. The venue model and XML mappers are already on the classpath via the shared artifact `com.iqkv:docintelligence-venue`, picked up by the existing `@MapperScan` and `classpath*:mappers/**/*.xml` scan — no client calls and no per-mapper wiring are needed. This service owns pitches, not the venue library.
 
 **Changelog rules**
 
@@ -163,7 +163,7 @@ Format: `type(scope): subject`
 
 Examples:
 
-- `feat(pitch): add venue selection to a pitch draft`
+- `feat(salesroom): add venue selection to a pitch draft`
 - `fix(messaging): consumer silently drops events with unknown tenant key`
 - `refactor(infrastructure): extract CORS config into dedicated properties class`
 - `chore(deps): update spring-boot to 3.5.0`
@@ -643,13 +643,13 @@ class UserServiceIntegrationTest {
 **Architecture Tests with ArchUnit:**
 
 ```java
-@AnalyzeClasses(packagesOf = PitchServiceApplication.class, importOptions = DoNotIncludeTests.class)
+@AnalyzeClasses(packagesOf = SalesRoomServiceApplication.class, importOptions = DoNotIncludeTests.class)
 class TechnicalStructureTest {
 
   @ArchTest
   static final ArchRule respectsTechnicalArchitectureLayers = onionArchitecture()
       .withOptionalLayers(true)
-      .ignoreDependency(belongToAnyOf(PitchServiceApplication.class), alwaysTrue());
+      .ignoreDependency(belongToAnyOf(SalesRoomServiceApplication.class), alwaysTrue());
 }
 ```
 

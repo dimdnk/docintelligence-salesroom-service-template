@@ -1,15 +1,15 @@
 services:
-  # PostgreSQL Database for Pitch Service
-  postgres-pitch:
+  # PostgreSQL Database for Digital Sales Room
+  postgres-salesroom:
     extends:
       file: compose.base.yaml
-      service: postgres-pitch
+      service: postgres-salesroom
 
-  # RabbitMQ for Pitch Service
-  rabbitmq-pitch:
+  # RabbitMQ for Digital Sales Room
+  rabbitmq-salesroom:
     extends:
       file: compose.base.yaml
-      service: rabbitmq-pitch
+      service: rabbitmq-salesroom
 
   # MinIO S3-compatible object storage
   minio:
@@ -35,29 +35,29 @@ services:
       file: compose.base.yaml
       service: ollama
 
-  # Pitch Service - Full platform run including build phase
-  pitch-service:
+  # Digital Sales Room - Full platform run including build phase
+  salesroom-service:
     extends:
       file: compose.base.yaml
-      service: pitch-service
+      service: salesroom-service
 
 networks:
-  pitch-service-network:
-    name: docintelligence-pitch-network-dev
+  salesroom-service-network:
+    name: docintelligence-salesroom-network-dev
     external: false
 
 volumes:
-  postgres_pitch_data:
-    name: docintelligence_pitch_postgres_data_dev
-  rabbitmq_pitch_data:
-    name: docintelligence_pitch_rabbitmq_data_dev
-  minio_pitch_data:
-    name: docintelligence_pitch_minio_data_dev
-  dbgate_pitch_data:
-    name: docintelligence_pitch_dbgate_data_dev
-  pitch_logs:
-    name: docintelligence_pitch_logs_dev
-  pitch_tmp:
-    name: docintelligence_pitch_tmp_dev
-  ollama_pitch_data:
-    name: docintelligence_pitch_ollama_data_dev
+  postgres_salesroom_data:
+    name: docintelligence_salesroom_postgres_data_dev
+  rabbitmq_salesroom_data:
+    name: docintelligence_salesroom_rabbitmq_data_dev
+  minio_salesroom_data:
+    name: docintelligence_salesroom_minio_data_dev
+  dbgate_salesroom_data:
+    name: docintelligence_salesroom_dbgate_data_dev
+  salesroom_logs:
+    name: docintelligence_salesroom_logs_dev
+  salesroom_tmp:
+    name: docintelligence_salesroom_tmp_dev
+  ollama_salesroom_data:
+    name: docintelligence_salesroom_ollama_data_dev

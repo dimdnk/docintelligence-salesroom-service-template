@@ -1,4 +1,4 @@
-# Multi-stage build for Pitch Service with optimized caching
+# Multi-stage build for Digital Sales Room with optimized caching
 FROM eclipse-temurin:25-jdk-alpine AS builder
 
 # Install Maven for build optimization

@@ -2,7 +2,7 @@
 
 ### Overview
 
-The Document Intelligence Pitch Service is deployed using Helm charts and automated CI/CD pipelines. It serves the tenant-facing Digital Sales Room API, reads the venue library straight from the shared catalog database through the shared venue data layer, connects to an Ollama instance for LLM connectivity, and validates JWT RS256 tokens against the IAM service JWKS endpoint.
+The Document Intelligence Digital Sales Room is deployed using Helm charts and automated CI/CD pipelines. It serves the tenant-facing Digital Sales Room API, reads the venue library straight from the shared catalog database through the shared venue data layer, connects to an Ollama instance for LLM connectivity, and validates JWT RS256 tokens against the IAM service JWKS endpoint.
 
 ### Prerequisites
 
@@ -59,7 +59,7 @@ The service uses a Drone CI/CD pipeline with 10 stages:
 | `INFRA_POSTGRESQL_PASSWORD`       | PostgreSQL database password      | Application configuration                  |
 | `INFRA_RABBITMQ_PASSWORD`         | RabbitMQ message broker password  | Application configuration                  |
 
-> No `SMTP_*` secrets required — the Pitch Service does not send email.
+> No `SMTP_*` secrets required — the Digital Sales Room does not send email.
 
 </details>
 
@@ -78,7 +78,7 @@ The service uses a Drone CI/CD pipeline with 10 stages:
 
 ```bash
 # WIP / Feature branches (SIT)
-helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-service ./ \
+helm upgrade --install --atomic --wait --timeout 5m docintelligence-salesroom-service ./ \
   --values ./values.yaml \
   --values ./values-sit.yaml \
   --set image.tag=${DRONE_BRANCH} \
@@ -88,7 +88,7 @@ helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-servic
   --create-namespace
 
 # Production (tagged releases)
-helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-service ./ \
+helm upgrade --install --atomic --wait --timeout 5m docintelligence-salesroom-service ./ \
   --values ./values.yaml \
   --values ./values-prd.yaml \
   --set image.tag=${DRONE_TAG} \
@@ -107,10 +107,10 @@ helm upgrade --install --atomic --wait --timeout 5m docintelligence-pitch-servic
 ```bash
 # Clone Helm charts
 git clone <HELM_CHARTS_REPOSITORY> charts
-cd charts/IQKV/docintelligence-pitch-service
+cd charts/IQKV/docintelligence-salesroom-service
 
 # Deploy to SIT
-helm upgrade --install docintelligence-pitch-service ./ \
+helm upgrade --install docintelligence-salesroom-service ./ \
   --values values-sit.yaml \
   --set infraServices.postgresql.password="your-db-password" \
   --set infraServices.rabbitmq.password="your-rabbitmq-password" \
@@ -121,15 +121,15 @@ helm upgrade --install docintelligence-pitch-service ./ \
 #### Secret Configuration Examples
 
 ```bash
-drone secret add --repository IQKV/docintelligence-pitch-service --name INFRA_POSTGRESQL_PASSWORD --data "your-postgresql-password"
-drone secret add --repository IQKV/docintelligence-pitch-service --name INFRA_RABBITMQ_PASSWORD --data "your-rabbitmq-password"
+drone secret add --repository IQKV/docintelligence-salesroom-service --name INFRA_POSTGRESQL_PASSWORD --data "your-postgresql-password"
+drone secret add --repository IQKV/docintelligence-salesroom-service --name INFRA_RABBITMQ_PASSWORD --data "your-rabbitmq-password"
 ```
 
 #### External Services
 
 The service connects to these external infrastructure components:
 
-- **PostgreSQL**: Pitch data persistence — the same database as `docintelligence-catalog-service` in production (shared so venue and pitch data are managed in one place), holding the `public` schema plus one `t_{tenantKey}` schema per provisioned tenant
+- **PostgreSQL**: Sales Room data persistence — the same database as `docintelligence-catalog-service` in production (shared so venue and pitch data are managed in one place), holding the `public` schema plus one `t_{tenantKey}` schema per provisioned tenant
 - **RabbitMQ**: Messaging and the IAM tenant provisioning consumer
 - **Ollama**: LLM inference endpoint (`http://foundation-ollama:11434` by default)
 - **IAM Service**: JWKS endpoint for JWT validation (`http://foundation-iam-service:8080/.well-known/jwks.json`)
@@ -197,7 +197,7 @@ UAT and production deployments include:
 1. **Database connection failures**
 
     ```bash
-    kubectl logs deployment/docintelligence-pitch-service -n iqkv-sit-env
+    kubectl logs deployment/docintelligence-salesroom-service -n iqkv-sit-env
     ```
 
 2. **JWT validation failures**
@@ -205,20 +205,20 @@ UAT and production deployments include:
     Ensure `config.jwt.jwksUri` points to the correct IAM service JWKS endpoint:
 
     ```bash
-    kubectl describe configmap docintelligence-pitch-service-config -n iqkv-sit-env
+    kubectl describe configmap docintelligence-salesroom-service-config -n iqkv-sit-env
     ```
 
 3. **Check configuration**
 
     ```bash
-    kubectl describe configmap docintelligence-pitch-service-config -n iqkv-sit-env
-    kubectl describe secret docintelligence-pitch-service-secrets -n iqkv-sit-env
+    kubectl describe configmap docintelligence-salesroom-service-config -n iqkv-sit-env
+    kubectl describe secret docintelligence-salesroom-service-secrets -n iqkv-sit-env
     ```
 
 4. **Test health endpoints**
 
     ```bash
-    kubectl port-forward deployment/docintelligence-pitch-service 8081:8081 -n iqkv-sit-env
+    kubectl port-forward deployment/docintelligence-salesroom-service 8081:8081 -n iqkv-sit-env
     curl http://localhost:8081/actuator/health
     ```
 
@@ -226,16 +226,16 @@ UAT and production deployments include:
 
 ```bash
 kubectl get secrets -n iqkv-sit-env
-kubectl get secret docintelligence-pitch-service-secrets -n iqkv-sit-env -o yaml
-drone secret ls --repository IQKV/docintelligence-pitch-service
+kubectl get secret docintelligence-salesroom-service-secrets -n iqkv-sit-env -o yaml
+drone secret ls --repository IQKV/docintelligence-salesroom-service
 ```
 
 #### Rollback
 
 ```bash
-helm rollback docintelligence-pitch-service -n iqkv-prd-env
+helm rollback docintelligence-salesroom-service -n iqkv-prd-env
 # Or uninstall completely
-helm uninstall docintelligence-pitch-service -n iqkv-prd-env
+helm uninstall docintelligence-salesroom-service -n iqkv-prd-env
 ```
 
 ### Security

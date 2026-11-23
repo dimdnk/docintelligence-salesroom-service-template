@@ -1,5 +1,5 @@
 ${AnsiColor.BLUE} ===============================
-${AnsiColor.BLUE}  Pitch Service Backend API
+${AnsiColor.BLUE}  Digital Sales Room Backend API
 ${AnsiColor.BLUE}  Running Spring Boot ${spring-boot.version}
 ${AnsiColor.BLUE}  VCS Reference: ${APPLICATION_VCS_REFERENCE:unknown}
 ${AnsiColor.BLUE} ===============================

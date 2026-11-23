@@ -1,6 +1,6 @@
 ## 📜 API Documentation
 
-Base path: `/api/v1/pitch`
+Base path: `/api/v1/salesroom`
 
 All endpoints require a valid RS256 JWT issued by the IAM service unless marked as public.
 The JWT must be passed as a `Bearer` token in the `Authorization` header.
@@ -38,7 +38,7 @@ Two conventions apply to every non-public path:
 No domain endpoints are implemented yet — `ping` is the only shipped surface. New surfaces arrive as feature slices, each mirroring the public / tenant / admin tiers above. The slices the Digital Sales Room brief calls for:
 
 - **Venue selection** — search the venue library in the shared catalog database and add venues to a pitch
-- **Pitch generation** — one click renders the selected venues as a branded, interactive client page
+- **Sales Room generation** — one click renders the selected venues as a branded, interactive client page
 - **Share links** — client-scoped links that open on any device with no account
 - **Client engagement** — photo and floor-plan browsing, plus per-venue comments and Q&A answered in context
 - **Approval** — client approval locks every field, file, and decision into an immutable, timestamped record
@@ -55,7 +55,7 @@ All errors follow RFC 7807 `ProblemDetail` format:
     "title": "Validation Failed",
     "status": 400,
     "detail": "Request validation failed",
-    "instance": "/api/v1/pitch/ping",
+    "instance": "/api/v1/salesroom/ping",
     "correlationId": "abc12345",
     "requestId": "req-a1b2c3d4"
 }
@@ -74,6 +74,6 @@ All errors follow RFC 7807 `ProblemDetail` format:
 ### Interactive Documentation
 
 Swagger UI is available at `http://localhost:8080/swagger-ui.html` when running locally.
-The Gateway aggregates the Pitch Service spec at `/api/v1/pitch/api-docs`.
+The Gateway aggregates the Digital Sales Room spec at `/api/v1/salesroom/api-docs`.
 
 > Auth legend: `public` = no token required; `JWT` = valid Bearer token; `JWT + X-Tenant-ID` = valid Bearer token plus a resolvable tenant; `JWT PLATFORM_ADMIN` = JWT with platform administrator authority.

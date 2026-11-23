@@ -4,7 +4,7 @@
 
 spring:
   application:
-    name: docintelligence-pitch-service
+    name: docintelligence-salesroom-service
   datasource:
     url: jdbc:postgresql://${iqkv.db.host}:${iqkv.db.port}/${iqkv.db.name}
     username: ${iqkv.db.username}
@@ -78,14 +78,14 @@ iqkv:
   db:
     host: ${DB_HOST:localhost}
     port: ${DB_PORT:5432}
-    name: ${DB_NAME:pitchservice}
-    username: ${DB_USERNAME:svc_pitch_dba}
-    password: ${DB_PASSWORD:svc_pitch_dba}
+    name: ${DB_NAME:salesroomservice}
+    username: ${DB_USERNAME:svc_salesroom_dba}
+    password: ${DB_PASSWORD:svc_salesroom_dba}
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:svc_pitch_rmq}
-    password: ${RABBITMQ_PASSWORD:svc_pitch_rmq}
+    username: ${RABBITMQ_USERNAME:svc_salesroom_rmq}
+    password: ${RABBITMQ_PASSWORD:svc_salesroom_rmq}
   messaging:
     rabbitmq:
       # Controlled via MESSAGING_ENABLED env var; defaults to false for local safety.
@@ -100,7 +100,7 @@ iqkv:
     public-endpoint: ${OBJECTSTORAGE_PUBLIC_ENDPOINT:}
     access-key: ${OBJECTSTORAGE_ACCESS_KEY:iqkv}
     secret-key: ${OBJECTSTORAGE_SECRET_KEY:iqkv_password}
-    bucket-name: ${OBJECTSTORAGE_BUCKET_NAME:pitch-assets}
+    bucket-name: ${OBJECTSTORAGE_BUCKET_NAME:salesroom-assets}
     region: ${OBJECTSTORAGE_REGION:us-east-1}
     ssl: ${OBJECTSTORAGE_SSL:false}
     upload:

@@ -1,10 +1,10 @@
-# Document Intelligence Pitch Service 📇
+# Document Intelligence Digital Sales Room 📇
 
 A multi-tenant, JWT-secured microservice on the iQ Key Value platform, backed by PostgreSQL, RabbitMQ, MinIO, and Ollama.
 
 ## About
 
-The Pitch Service powers the **Digital Sales Room for Events** — the client-facing pitch your buyers can actually use. Select venues from your library, generate a branded interactive page in one click, and send the link. Your client browses, asks questions, and approves — no PDF, no account, no back-and-forth.
+The Digital Sales Room powers the **Digital Sales Room for Events** — the client-facing salesroom your buyers can actually use. Select venues from your library, generate a branded interactive page in one click, and send the link. Your client browses, asks questions, and approves — no PDF, no account, no back-and-forth.
 
 - **Brief to pitch in minutes** — pick venues, click Generate, send a link. Done before the client follows up.
 - **No client login required** — the client opens a link on any device, browses photos and floor plans, and approves.
@@ -21,7 +21,7 @@ The domain slices above are still to be built; this repository currently ships o
 - **Three security tiers** — public, tenant JWT (`MEMBER` / `TENANT_OWNER` / `ADMIN`), and platform admin (`PLATFORM_ADMIN`)
 - **Multi-tenant isolation** — tenant context resolved from the `X-Tenant-ID` header or the JWT `tenant_id` claim before every request
 - **Persistence** — PostgreSQL via MyBatis (XML mappers); the same database as `docintelligence-catalog-service` in production; Liquibase manages system and per-tenant schema migrations
-- **Object storage** — MinIO (S3-compatible) client bound to a private `pitch-assets` bucket; clients receive presigned URLs
+- **Object storage** — MinIO (S3-compatible) client bound to a private `salesroom-assets` bucket; clients receive presigned URLs
 - **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`)
 - **AI connectivity** — Spring AI Ollama starter pre-wired via `spring.ai.ollama.*` (base URL and models configurable per environment)
 - **Observability** — Micrometer + Prometheus + structured JSON logging (Logstash encoder)
@@ -36,7 +36,7 @@ The domain slices above are still to be built; this repository currently ships o
 
 ## API
 
-Base path: `/api/v1/pitch`
+Base path: `/api/v1/salesroom`
 
 ### Ping
 
@@ -51,7 +51,7 @@ Base path: `/api/v1/pitch`
 `ping` is the only shipped surface — no domain endpoints exist yet. The slices below are the ones the Digital Sales Room brief calls for:
 
 - **Venue selection** — search the venue library and add venues to a pitch
-- **Pitch generation** — one click renders the selected venues as a branded, interactive client page
+- **Sales Room generation** — one click renders the selected venues as a branded, interactive client page
 - **Share links** — client-scoped links that open on any device with no account
 - **Client engagement** — photo and floor-plan browsing, plus per-venue comments and Q&A answered in context
 - **Approval** — client approval locks every field, file, and decision into an immutable, timestamped record
@@ -86,8 +86,8 @@ Base path: `/api/v1/pitch`
 
 ```bash
 # Clone the repository
-git clone https://github.com/IQKV/docintelligence-pitch-service.git
-cd docintelligence-pitch-service
+git clone https://github.com/IQKV/docintelligence-salesroom-service.git
+cd docintelligence-salesroom-service
 
 # Install git hooks
 pnpm install
@@ -116,18 +116,18 @@ docker compose up -d
 | :------------------------------------ | :----------------------- | :-------------------------------------------- |
 | `DB_HOST`                             | `localhost`              | PostgreSQL host                               |
 | `DB_PORT`                             | `5432`                   | PostgreSQL port                               |
-| `DB_NAME`                             | `pitchservice`           | Database name (the shared catalog database in production) |
-| `DB_USERNAME`                         | `svc_pitch_dba`          | Database user                                 |
-| `DB_PASSWORD`                         | `svc_pitch_dba`          | Database password                             |
+| `DB_NAME`                             | `salesroomservice`           | Database name (the shared catalog database in production) |
+| `DB_USERNAME`                         | `svc_salesroom_dba`          | Database user                                 |
+| `DB_PASSWORD`                         | `svc_salesroom_dba`          | Database password                             |
 | `RABBITMQ_HOST`                       | `localhost`              | RabbitMQ host                                 |
 | `RABBITMQ_PORT`                       | `5672`                   | RabbitMQ AMQP port                            |
-| `RABBITMQ_USERNAME`                   | `svc_pitch_rmq`          | RabbitMQ user                                 |
-| `RABBITMQ_PASSWORD`                   | `svc_pitch_rmq`          | RabbitMQ password                             |
+| `RABBITMQ_USERNAME`                   | `svc_salesroom_rmq`          | RabbitMQ user                                 |
+| `RABBITMQ_PASSWORD`                   | `svc_salesroom_rmq`          | RabbitMQ password                             |
 | `OBJECTSTORAGE_ENDPOINT`              | `http://localhost:9000`  | S3-compatible endpoint (MinIO in SIT/UAT)     |
 | `OBJECTSTORAGE_PUBLIC_ENDPOINT`       | _(empty)_                | Public URL used to rewrite presigned URLs     |
 | `OBJECTSTORAGE_ACCESS_KEY`            | `iqkv`                   | S3 access key                                 |
 | `OBJECTSTORAGE_SECRET_KEY`            | `iqkv_password`          | S3 secret key                                 |
-| `OBJECTSTORAGE_BUCKET_NAME`           | `pitch-assets`           | Private bucket holding pitch assets           |
+| `OBJECTSTORAGE_BUCKET_NAME`           | `salesroom-assets`           | Private bucket holding salesroom assets           |
 | `OBJECTSTORAGE_REGION`                | `us-east-1`              | S3 region                                     |
 | `OBJECTSTORAGE_SSL`                   | `false`                  | Use HTTPS for the S3 endpoint                 |
 | `SPRING_PROFILES_ACTIVE`              | `local`                  | Active Spring profile                         |
@@ -162,7 +162,7 @@ docker compose up -d
 
 ```bash
 # Build image
-docker build -t iqkv/docintelligence-pitch-service:latest .
+docker build -t iqkv/docintelligence-salesroom-service:latest .
 
 # Run with full platform stack
 docker compose -f compose.container.yaml up -d
@@ -181,7 +181,7 @@ docker compose -f compose.container.yaml up -d
 ## Project Structure
 
 ```
-src/main/java/com/iqkv/docintelligence/pitchservice/
+src/main/java/com/iqkv/docintelligence/salesroomservice/
 ├── ping/            # Reference feature slice — probes for the three security tiers
 ├── infrastructure/  # Cross-cutting technical concerns: Spring config, security, messaging, persistence
 │   ├── config/      # @Configuration, properties, global exception handler
@@ -189,7 +189,7 @@ src/main/java/com/iqkv/docintelligence/pitchservice/
 │   ├── persistence/ # MyBatis / datasource configuration
 │   └── messaging/   # RabbitMQ configuration and tenant provisioning consumer
 ├── shared/          # Cross-slice kernel — common exceptions and utilities
-└── PitchServiceApplication.java
+└── SalesRoomServiceApplication.java
 ```
 
 New domain features go in as sibling packages next to `ping/` — one package per feature slice, holding its REST resources, service contract and implementation, DTOs and slice exceptions.
@@ -206,12 +206,12 @@ Please read our [Contributing Guidelines](.github/CONTRIBUTING.md) and [Code of 
 
 ## 🧩 Architecture
 
-- **Venue library** — owned by `docintelligence-catalog-service` and read straight from the shared database (same PostgreSQL database in production) via the `com.iqkv:docintelligence-venue` data layer; this service stores only pitch-scoped records
+- **Venue library** — owned by `docintelligence-catalog-service` and read straight from the shared database (same PostgreSQL database in production) via the `com.iqkv:docintelligence-venue` data layer; this service stores only salesroom-scoped records
 - **API tiers** — public (`/ping`), tenant (JWT + resolved tenant context), and platform admin (`PLATFORM_ADMIN`); mirrored per feature slice
 - **Security** — Spring Security + OAuth2 Resource Server; RS256 JWT validated through the IAM JWKS endpoint (deployed) or a classpath PEM key (local dev / tests); `@PreAuthorize` on protected endpoints
 - **Multi-tenancy** — `ROLLOUT_MODE` (`MULTI_TENANT` | `SINGLE_TENANT`) — must be identical across all platform services; tenant data lives in a `t_{tenantKey}` schema
 - **Persistence** — MyBatis with XML mappers + PostgreSQL; Liquibase manages system and per-tenant schema migrations
-- **Object storage** — MinIO S3-compatible client (`OBJECTSTORAGE_*`); the `pitch-assets` bucket stays private and clients receive presigned URLs
+- **Object storage** — MinIO S3-compatible client (`OBJECTSTORAGE_*`); the `salesroom-assets` bucket stays private and clients receive presigned URLs
 - **Messaging** — RabbitMQ consumer for IAM tenant provisioning events (`tenant.created` / `tenant.updated`) bound to the shared `iqkv.events` exchange; `iqkv.messaging.rabbitmq.enabled` toggle — disabled in base profile, enabled per environment
 - **AI** — Ollama connectivity configured via `spring.ai.ollama.*` (`SPRING_AI_OLLAMA_BASE_URL`, `SPRING_AI_OLLAMA_CHAT_OPTIONS_MODEL`, `SPRING_AI_OLLAMA_EMBEDDING_MODEL`); no AI feature slice ships yet
 - **Observability** — Micrometer + Prometheus; structured JSON logging with Logstash encoder; health probes for Kubernetes readiness/liveness

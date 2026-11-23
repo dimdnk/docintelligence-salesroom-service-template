@@ -1,2 +1,2 @@
-{"_id":"postgres-pitch","engine":"postgres@dbgate-plugin-postgres","server":"postgres-pitch","port":5432,"user":"svc_pitch_dba","password":"svc_pitch_dba","database":"pitchservice","displayName":"PostgreSQL - Pitch Service"}
-{"_id":"rabbitmq-pitch","engine":"rabbitmq@dbgate-plugin-rabbitmq","server":"rabbitmq-pitch","port":15672,"user":"svc_pitch_rmq","password":"svc_pitch_rmq","displayName":"RabbitMQ - Pitch Service"}
+{"_id":"postgres-salesroom","engine":"postgres@dbgate-plugin-postgres","server":"postgres-salesroom","port":5432,"user":"svc_salesroom_dba","password":"svc_salesroom_dba","database":"salesroomservice","displayName":"PostgreSQL - Digital Sales Room"}
+{"_id":"rabbitmq-salesroom","engine":"rabbitmq@dbgate-plugin-rabbitmq","server":"rabbitmq-salesroom","port":15672,"user":"svc_salesroom_rmq","password":"svc_salesroom_rmq","displayName":"RabbitMQ - Digital Sales Room"}

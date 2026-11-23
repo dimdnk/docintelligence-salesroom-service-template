@@ -6,19 +6,19 @@ This directory contains the DbGate database administration tool configuration fo
 
 The `connections.jsonl` file contains pre-configured connections template for microservice infrastructure:
 
-### 1. PostgreSQL - Pitch Service
+### 1. PostgreSQL - Digital Sales Room
 
-- **ID**: `postgres-pitch`
-- **Server**: `postgres-pitch:5432`
-- **Database**: `pitchservice`
-- **User**: `svc_pitch_dba`
+- **ID**: `postgres-salesroom`
+- **Server**: `postgres-salesroom:5432`
+- **Database**: `salesroomservice`
+- **User**: `svc_salesroom_dba`
 - **Engine**: `postgres@dbgate-plugin-postgres`
 
-### 2. RabbitMQ - Pitch Service
+### 2. RabbitMQ - Digital Sales Room
 
-- **ID**: `rabbitmq-pitch`
-- **Server**: `rabbitmq-pitch:15672`
-- **User**: `svc_pitch_rmq`
+- **ID**: `rabbitmq-salesroom`
+- **Server**: `rabbitmq-salesroom:15672`
+- **User**: `svc_salesroom_rmq`
 - **Engine**: `rabbitmq@dbgate-plugin-rabbitmq`
 
 ## Template Usage
@@ -157,7 +157,7 @@ ports:
 
 ```bash
 # Check logs
-docker logs docintelligence-pitch-dbgate-dev
+docker logs docintelligence-salesroom-dbgate-dev
 
 # Verify connections file exists
 ls docker/dbgate/connections.jsonl
@@ -170,26 +170,26 @@ docker compose restart dbgate
 
 ```bash
 # Verify PostgreSQL is running and healthy
-docker ps --filter name=docintelligence-pitch-postgres-dev
+docker ps --filter name=docintelligence-salesroom-postgres-dev
 
 # Check PostgreSQL logs
-docker logs docintelligence-pitch-postgres-dev
+docker logs docintelligence-salesroom-postgres-dev
 
 # Test connection from DbGate container
-docker exec docintelligence-pitch-dbgate-dev ping postgres-pitch
+docker exec docintelligence-salesroom-dbgate-dev ping postgres-salesroom
 ```
 
 ### Can't connect to RabbitMQ
 
 ```bash
 # Verify RabbitMQ is running
-docker ps --filter name=docintelligence-pitch-rabbitmq-dev
+docker ps --filter name=docintelligence-salesroom-rabbitmq-dev
 
 # Check RabbitMQ logs
-docker logs docintelligence-pitch-rabbitmq-dev
+docker logs docintelligence-salesroom-rabbitmq-dev
 
 # Check management plugin is enabled
-docker exec docintelligence-pitch-rabbitmq-dev rabbitmq-plugins list
+docker exec docintelligence-salesroom-rabbitmq-dev rabbitmq-plugins list
 ```
 
 ### Port 3100 already in use
@@ -212,7 +212,7 @@ docker compose stop dbgate
 docker compose rm -f dbgate
 
 # Remove volume
-docker volume rm docintelligence_pitch_dbgate_data_dev
+docker volume rm docintelligence_salesroom_dbgate_data_dev
 
 # Restart
 docker compose up -d dbgate
