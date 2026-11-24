@@ -54,21 +54,21 @@ What those tools cannot give us is the input. Their pages start from a document 
 
 These four decide whether the board is a page or a process. Everything above is already in the design.
 
-| Feature              | What it means for us                                                                                                                                                            |
-| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Plan of record       | Every step toward the event as a task with an owner (planner or client) and a date, ticked off inside the board. Replaces "agreed steps" as a loose note.                        |
+| Feature                | What it means for us                                                                                                                                                                                     |
+| :--------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Plan of record         | Every step toward the event as a task with an owner (planner or client) and a date, ticked off inside the board. Replaces "agreed steps" as a loose note.                                                |
 | People, not one client | The client side is often several people, so each participant carries a role and their own view, with an optional email gate so the planner learns who opened the board and who a forwarded link reached. |
-| Tell the planner     | Engagement only matters if it arrives. Email notifications and a digest carry opens, comments and decisions to the planner; a Slack or Teams push is a later option.              |
-| Collect the details  | One form on the board for what the event needs (headcount, dietary, AV, billing), with the answers landing next to the approval instead of in email.                            |
+| Tell the planner       | Engagement only matters if it arrives. Email notifications and a digest carry opens, comments and decisions to the planner; a Slack or Teams push is a later option.                                     |
+| Collect the details    | One form on the board for what the event needs (headcount, dietary, AV, billing), with the answers landing next to the approval instead of in email.                                                     |
 
 ### Priority 2 — behaviour and flow analysis
 
 Once activity is recorded per person and per venue, the intelligence layer turns it into two readings that help both sides, not only the seller.
 
-| Analysis   | What it answers                                                                                                                                                  |
-| :--------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Behaviour  | Who looked at what, how often and how recently, per venue and per person. "The decision maker has not opened the board in nine days." "The client keeps returning to one venue and never opens the others." |
-| Flow       | Where the sale stalls inside the board: shared but never opened, opened but no questions, questions answered but no selection, selection but no approval. Each stage names the next action for the planner and shows the client what still waits on them. |
+| Analysis  | What it answers                                                                                                                                                                                                                                           |
+| :-------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Behaviour | Who looked at what, how often and how recently, per venue and per person. "The decision maker has not opened the board in nine days." "The client keeps returning to one venue and never opens the others."                                               |
+| Flow      | Where the sale stalls inside the board: shared but never opened, opened but no questions, questions answered but no selection, selection but no approval. Each stage names the next action for the planner and shows the client what still waits on them. |
 
 > Deliberately not in scope for this service: CRM pipeline sync, prospecting, e-signature with legal weight, seller-to-seller chat, and live video calls. We are the client-facing layer of a focused sale, not a revenue platform.
 
@@ -146,17 +146,19 @@ Base path: `/api/v1/salesroom`
 
 The service shares the docintelligence PostgreSQL instance but owns its own tables, created in the `t_{tenantKey}` schema by this service's tenant changelog when IAM emits `tenant.created`. Catalog venues are referenced by id and read read-only — no database foreign key crosses the service boundary, so pitch data stays intact even if a venue leaves the library. Assets live in the private `salesroom-assets` bucket; only their metadata is stored here.
 
-| Table                    | Side    | Purpose                                                                                                                               |
-| :----------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------ |
-| `salesroom_boards`       | planner | The salesroom itself — slug, share token, title, event context, branding, status (`DRAFT` → `SHARED` → `APPROVED` → `ARCHIVED`)       |
-| `salesroom_board_venues` | planner | The picked catalog venue rows (venue id + position) with the planner's annotation and a frozen venue metadata snapshot                |
-| `salesroom_options`      | planner | Planner-offered options per venue entry — package name, inclusions and price breakdown                                                |
-| `salesroom_price_items`  | planner | Line items behind an option's price: label, quantity, unit price, currency                                                            |
-| `salesroom_media`        | planner | Photos, floor plans and documents attached to a board, venue entry or option; the file sits in S3, the row holds the key and metadata |
-| `salesroom_comments`     | both    | Two-sided Q&A — planner and client comments on a board, venue entry or option, answered in context                                    |
-| `salesroom_markers`      | client  | Client's per-venue or per-option reaction — favourite, maybe, rejected                                                                |
-| `salesroom_activity`     | both    | Activity feed — views, shares, comments, marker changes and approvals                                                                 |
-| `salesroom_approvals`    | client  | Immutable, timestamped approval snapshot: frozen content hash plus approver identity                                                  |
+| Table                    | Side    | Purpose                                                                                                                                           |
+| :----------------------- | :------ | :------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `salesroom_boards`       | planner | The salesroom itself — slug, share token, title, event context (jsonb), branding (jsonb), form field definitions (jsonb), selected venue, status  |
+| `salesroom_board_venues` | planner | Picked catalog venues — venue id, position, planner annotation, frozen venue snapshot (jsonb), options and price breakdown (jsonb), media (jsonb) |
+| `salesroom_participants` | both    | People on the client side — name, email, role (decides, pays, other), optional email gate for open tracking                                       |
+| `salesroom_plan_items`   | both    | Plan of record — next steps toward the event with an owner side, a due date and a done flag                                                       |
+| `salesroom_form_answers` | both    | Answers to the form fields the planner defined — field key, value, which participant answered                                                     |
+| `salesroom_comments`     | both    | Two-sided Q&A and notes — board or venue scope, author side, internal flag, body                                                                  |
+| `salesroom_markers`      | client  | Per-participant per-venue selection state — favourite, maybe, rejected, chosen                                                                    |
+| `salesroom_activity`     | both    | Activity feed — views, comments, markers, form answers and approvals, with actor side and payload (jsonb)                                         |
+| `salesroom_approvals`    | client  | Immutable approval snapshot — frozen content hash, approver identity, timestamp                                                                   |
+
+Options, price items and media are stored as jsonb on `salesroom_board_venues` rather than separate tables, consistent with the label and value design decision below. Notes are comments with the `internal` flag set. Markers are the client's explicit selection, not a reaction: the client narrows venues per person, the agreed choice lands on `salesroom_boards`, and approval freezes it.
 
 > Initial, indicative list only. Tables and columns are expected to change as the slices in [Planned surfaces](#planned-surfaces) are built.
 
