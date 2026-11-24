@@ -29,6 +29,8 @@ This template ships the platform plumbing. The domain surfaces above are still t
 
 ## Targets
 
+We are not building a CRM. This is a focused sales tool for one planner selling to one client, a private individual (B2C) or a small business (B2 small B). The flow has to be simple enough that neither side needs training, and data intelligence works as an assistant to both sides rather than a dashboard for a sales manager.
+
 The test for this service is not feature parity with the established digital sales room tools. It is whether an event planner can do, with venues and their own client, the same job those tools let a generic B2B seller do: share a living page, see engagement, take questions in context, present options and prices, and end in an approval both sides trust.
 
 The table below is the honest checklist. Left column is what buyers already expect from a sales room tool, right column is what "useful" means for us.
@@ -48,7 +50,68 @@ The table below is the honest checklist. Left column is what buyers already expe
 
 What those tools cannot give us is the input. Their pages start from a document the seller uploads. Ours starts from the planner's own venue library, so options carry the planner's real venue intelligence instead of a file somebody retyped.
 
-> Deliberately not in scope for this service: e-signature with legal weight, CRM pipeline sync, and seller-to-seller chat. Those belong to the tools the planner already pays for.
+### Priority 1 — four features on top of the checklist
+
+These four decide whether the board is a page or a process. Everything above is already in the design.
+
+| Feature              | What it means for us                                                                                                                                                            |
+| :------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Plan of record       | Every step toward the event as a task with an owner (planner or client) and a date, ticked off inside the board. Replaces "agreed steps" as a loose note.                        |
+| People, not one client | The client side is often several people, so each participant carries a role and their own view, with an optional email gate so the planner learns who opened the board and who a forwarded link reached. |
+| Tell the planner     | Engagement only matters if it arrives. Email notifications and a digest carry opens, comments and decisions to the planner; a Slack or Teams push is a later option.              |
+| Collect the details  | One form on the board for what the event needs (headcount, dietary, AV, billing), with the answers landing next to the approval instead of in email.                            |
+
+### Priority 2 — behaviour and flow analysis
+
+Once activity is recorded per person and per venue, the intelligence layer turns it into two readings that help both sides, not only the seller.
+
+| Analysis   | What it answers                                                                                                                                                  |
+| :--------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Behaviour  | Who looked at what, how often and how recently, per venue and per person. "The decision maker has not opened the board in nine days." "The client keeps returning to one venue and never opens the others." |
+| Flow       | Where the sale stalls inside the board: shared but never opened, opened but no questions, questions answered but no selection, selection but no approval. Each stage names the next action for the planner and shows the client what still waits on them. |
+
+> Deliberately not in scope for this service: CRM pipeline sync, prospecting, e-signature with legal weight, seller-to-seller chat, and live video calls. We are the client-facing layer of a focused sale, not a revenue platform.
+
+## MVP
+
+The sales room is two surfaces in two projects. The **tenant app** is where the deal owner works; the **pitch board microsite** is the short-link page the client opens, with its own UI and no login.
+
+### Tenant app — creating a deal
+
+1. **Name + client contact.** Deal name and the client's name and email. A second contact stays optional until more than one person is involved.
+2. **Template via multi-step builder.** System templates decide the default label and value set, the form defaults, and the branding defaults. Templates are code-defined placeholders, not database rows. Templates start with: basic, wedding, corporate training, and more added later.
+3. **Pick one or more venues from the catalog.** The planner searches their venue library and annotates each pick (notes, price breakdown, media). Venue data is read from the catalog read-only; the board takes a snapshot at share time so later catalog drift does not rewrite the client's page.
+4. **Define form elements for collecting inputs.** Headcount, date, dietary, AV, billing. Each element has a label, a type (text, number, date, choice), a required or optional flag, and who fills it (client or planner). Answers land on the deal, not in email.
+5. **Notes.** Internal notes (planner only) and shareable notes (client sees), both per deal and per venue.
+6. **Send.** A short link is generated and emailed to the client contact. The pitch board goes live at the share URL.
+
+### Pitch board microsite — what the client sees
+
+- Venues with photos, capacity, notes, price breakdown and media.
+- Per-venue reactions: favourite, maybe, rejected.
+- Two-sided comments, per venue and per board.
+- The form the planner asked the client to fill.
+- Shareable notes.
+- Approval: the client approves the selection, freezing a timestamped snapshot with a content hash and the venue data it was based on.
+
+### What the planner sees back
+
+- Engagement: opens, per-venue views, comments, reactions, form answers.
+- Tell the planner: email notification and digest. Engagement is only useful if it arrives.
+- Plan of record: next steps with an owner and a date.
+- People: who opened the board, via an optional email gate.
+
+### Build order
+
+1. **Tenant builder first.** Freeze the data structures, the management APIs and the planner UI. Nothing is shared with the client until the planner can create, edit and review a complete deal.
+2. **Pitch board microsite second.** Once the data structures are stable, build the public short-link page that reads them.
+
+### Not in MVP
+
+- CRM sync, prospecting, legal e-signature, seller-to-seller chat, live video calls.
+- AI deal coaching, document generation, per-venue scoring. These layer on top once activity is recorded.
+- White-label, SSO as a salesroom feature (SSO already lives in IAM).
+- Post-approval event-execution hub. The board can continue as that hub later, but the MVP ends at approval.
 
 ## Quick Links
 
@@ -107,7 +170,7 @@ Venue ids, asset keys and author ids are stored as plain values. No database for
 
 **2. Sales room content is label/value data, not fixed columns.**
 
-A pitch, a proposal, or any panel inside them stores its content as label + value pairs, each marked optional or required. The system provides a set of variants (schemas) a planner can pick as a starting point, but that choice is a starting point, not a limit — the planner stays free to build their own presentation of that document or screen. Because the shape is data rather than columns:
+A pitch, a proposal, or any panel inside them stores its content as label + value pairs, each marked optional or required. The board renders those values through placeholders and variables defined in code, the way a template processor works, so templates are not database rows and no table grows with layouts. A template is a starting point, not a limit: the planner stays free to build their own presentation of that document or screen. Because the shape is data rather than columns:
 
 - One or more venues can be attached to a pitch. Where the catalog values fit, they sync straight into the deal documents.
 - Where they do not fit, the planner or deal owner edits any value on the record by hand.
