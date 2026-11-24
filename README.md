@@ -88,7 +88,7 @@ The sales room is two surfaces in two projects. The **tenant app** is where the 
 ### Pitch board microsite — what the client sees
 
 - Venues with photos, capacity, notes, price breakdown and media.
-- Per-venue reactions: favourite, maybe, rejected.
+- Per-venue selections: favourite, maybe, rejected.
 - Two-sided comments, per venue and per board.
 - The form the planner asked the client to fill.
 - Shareable notes.
@@ -96,7 +96,7 @@ The sales room is two surfaces in two projects. The **tenant app** is where the 
 
 ### What the planner sees back
 
-- Engagement: opens, per-venue views, comments, reactions, form answers.
+- Engagement: opens, per-venue views, comments, selections, form answers.
 - Tell the planner: email notification and digest. Engagement is only useful if it arrives.
 - Plan of record: next steps with an owner and a date.
 - People: who opened the board, via an optional email gate.
@@ -154,13 +154,58 @@ The service shares the docintelligence PostgreSQL instance but owns its own tabl
 | `salesroom_plan_items`   | both    | Plan of record — next steps toward the event with an owner side, a due date and a done flag                                                       |
 | `salesroom_form_answers` | both    | Answers to the form fields the planner defined — field key, value, which participant answered                                                     |
 | `salesroom_comments`     | both    | Two-sided Q&A and notes — board or venue scope, author side, internal flag, body                                                                  |
-| `salesroom_markers`      | client  | Per-participant per-venue selection state — favourite, maybe, rejected, chosen                                                                    |
-| `salesroom_activity`     | both    | Activity feed — views, comments, markers, form answers and approvals, with actor side and payload (jsonb)                                         |
+| `salesroom_selections`   | client  | Per-participant per-venue selection state — favourite, maybe, rejected, chosen                                                                    |
+| `salesroom_activity`     | both    | Activity feed — views, comments, selections, form answers and approvals, with actor side and payload (jsonb)                                      |
 | `salesroom_approvals`    | client  | Immutable approval snapshot — frozen content hash, approver identity, timestamp                                                                   |
 
-Options, price items and media are stored as jsonb on `salesroom_board_venues` rather than separate tables, consistent with the label and value design decision below. Notes are comments with the `internal` flag set. Markers are the client's explicit selection, not a reaction: the client narrows venues per person, the agreed choice lands on `salesroom_boards`, and approval freezes it.
+Options, price items and media are stored as jsonb on `salesroom_board_venues` rather than separate tables, consistent with the label and value design decision below. Notes are comments with the `internal` flag set. Selections are the client's explicit choice, not a reaction: the client narrows venues per person, the agreed choice lands on `salesroom_boards`, and approval freezes it.
 
 > Initial, indicative list only. Tables and columns are expected to change as the slices in [Planned surfaces](#planned-surfaces) are built.
+
+## Slice Layout (planned)
+
+Domain features land as sibling packages next to `ping/`, one package per vertical slice. The layout follows the platform reference implementation (`foundation-ai-chat-service`, `chat/` slice), so a slice reads the same way in every service.
+
+- **Slice package** — a singular domain noun, lowercase, no `salesroom_` prefix: `board`, `participant`, `plan`, `form`, `comment`, `selection`, `activity`, `approval`.
+- **Models and mappers live in the slice** — each table gets a plain POJO (`Board`, `BoardVenue`) and its MyBatis mapper interface (`BoardMapper`, `BoardVenueMapper`) in the slice root, with the mapper XML in `src/main/resources/mappers/{slice}/`.
+- **DTOs in a `dto/` subpackage** — `XDtos` holds the request and response records, `XDtoMapper` maps between them and the model.
+- **Service** — an interface plus an implementation in the slice root (`BoardService` / `BoardServiceImpl`). Interface first, so tests and callers depend on the contract.
+- **REST resources** — `XRestResource` for the tenant surface, `Admin<X>RestResource` for `PLATFORM_ADMIN`. The admin prefix matches `AdminChatRestResource`.
+- **Exceptions** — in `shared/exception`, alongside the generic ones.
+- **Where the rest goes** — configuration in `infrastructure/config`, consumers in `infrastructure/messaging`, as with the tenant provisioning consumer today.
+- **Slice-to-slice calls are expected** — `board` records into `activity`, `approval` updates `board` status.
+
+`@MapperScan` already covers the service base package, so a slice-local mapper interface needs no wiring.
+
+| Slice         | Models + mappers      | Service              | REST resources                                | Tables                                       |
+| :------------ | :-------------------- | :------------------- | :-------------------------------------------- | :------------------------------------------- |
+| `board`       | `Board`, `BoardVenue` | `BoardService`       | `BoardRestResource`, `AdminBoardRestResource` | `salesroom_boards`, `salesroom_board_venues` |
+| `participant` | `Participant`         | `ParticipantService` | `ParticipantRestResource`                     | `salesroom_participants`                     |
+| `plan`        | `PlanItem`            | `PlanService`        | `PlanRestResource`                            | `salesroom_plan_items`                       |
+| `form`        | `FormAnswer`          | `FormService`        | `FormRestResource`                            | `salesroom_form_answers`                     |
+| `comment`     | `Comment`             | `CommentService`     | `CommentRestResource`                         | `salesroom_comments`                         |
+| `selection`   | `Selection`           | `SelectionService`   | `SelectionRestResource`                       | `salesroom_selections`                       |
+| `activity`    | `ActivityEntry`       | `ActivityService`    | `ActivityRestResource`                        | `salesroom_activity`                         |
+| `approval`    | `Approval`            | `ApprovalService`    | `ApprovalRestResource`                        | `salesroom_approvals`                        |
+
+Each model carries its own mapper and its own DTOs in the slice's `dto/` package. `Board` carries the form field definitions, so the `form` slice exposes the definitions and the answers from one package. `admin` resources are only built where platform oversight is actually needed.
+
+### Management API (planned)
+
+```
+/api/v1/salesroom/boards                                    tenant
+/api/v1/salesroom/boards/{boardId}/venues                   tenant
+/api/v1/salesroom/boards/{boardId}/participants             tenant
+/api/v1/salesroom/boards/{boardId}/plan                     tenant
+/api/v1/salesroom/boards/{boardId}/form                     tenant
+/api/v1/salesroom/boards/{boardId}/comments                 tenant
+/api/v1/salesroom/boards/{boardId}/selections               tenant
+/api/v1/salesroom/boards/{boardId}/activity                 tenant
+/api/v1/salesroom/boards/{boardId}/approval                 tenant
+/api/v1/salesroom/admin/boards                              PLATFORM_ADMIN
+```
+
+The public share-token surface is not in this list. It belongs to the pitch board microsite and is built after the tenant builder.
 
 ## Design Decisions (MVP)
 
@@ -323,10 +368,11 @@ docker compose -f compose.container.yaml up -d
     ├── application.yml               # Base configuration
     ├── application-{local,sit,uat,prd}.yml
     ├── db/changelog/{system,tenant}/ # Liquibase changelogs
+    ├── mappers/                      # MyBatis XML mappers, one directory per slice
     └── i18n/                         # Validation and message bundles
 ```
 
-New domain features go in as sibling packages next to `ping/` — one package per feature slice, holding its REST resources, service contract and implementation, DTOs and slice exceptions.
+New domain features go in as sibling packages next to `ping/` — one package per feature slice. Package naming, class naming, mapper location and the management API paths are in [Slice Layout](#slice-layout-planned).
 
 ## License
 
